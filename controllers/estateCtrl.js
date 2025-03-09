@@ -91,6 +91,29 @@ const estateCtrl = {
       return res.status(500).json({ msg: err.message });
     }
   },
+  getEstate: async (req, res) => {
+    try {
+      const estate = await Estate.findById(req.params.id)
+        .populate("user likes", "avatar full_name address", "users")
+        .populate({
+          path: "reviews",
+          populate: {
+            path: "user likes",
+            select: "-password",
+            model: "users",
+          },
+        });
+
+      if (!estate)
+        return res.status(400).json({ msg: "This estate does not exist." });
+
+      res.json({
+        estate,
+      });
+    } catch (err) {
+      return res.status(500).json({ msg: err.message });
+    }
+  },
 };
 
 export default estateCtrl;

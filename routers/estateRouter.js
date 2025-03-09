@@ -8,6 +8,7 @@ estateRouter.route("/estates").post(auth, estateCtrl.createEstate);
 estateRouter
   .route("/estate/:id")
   .patch(auth, estateCtrl.updateEstate)
+  .get(auth, estateCtrl.getEstate)
   .delete(auth, estateCtrl.deleteEstate);
 
 export default estateRouter;
