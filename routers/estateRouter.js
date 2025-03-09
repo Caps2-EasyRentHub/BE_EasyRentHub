@@ -1,0 +1,13 @@
+import express from "express";
+import estateCtrl from "../controllers/estateCtrl.js";
+import auth from "../middleware/auth.js";
+
+const estateRouter = express.Router();
+estateRouter.route("/estates").post(auth, estateCtrl.createEstate);
+
+estateRouter
+  .route("/estate/:id")
+  .patch(auth, estateCtrl.updateEstate)
+  .delete(auth, estateCtrl.deleteEstate);
+
+export default estateRouter;
