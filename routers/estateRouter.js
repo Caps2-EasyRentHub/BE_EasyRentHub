@@ -11,4 +11,6 @@ estateRouter
   .get(auth, estateCtrl.getEstate)
   .delete(auth, estateCtrl.deleteEstate);
 
+estateRouter.get("/getRecommend/:id", auth, estateCtrl.getRecommend);
+
 export default estateRouter;
