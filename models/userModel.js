@@ -53,8 +53,12 @@ const userSchema = new Schema({
             default: ''
         },
     },
-    status: Number,
-    role: Number
+    role: {
+        type: String,
+        enum: ["Tenant", "Landlord"],
+        default: "Tenant"
+    },
+    status: Number
 }, {
     timestamps: true
 })

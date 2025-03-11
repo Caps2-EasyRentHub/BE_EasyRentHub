@@ -8,7 +8,7 @@ const { sign } = jwt
 const authCtrl = {
     register: async (req, res) => {
         try {
-            const { full_name, email, password } = req.body
+            const { full_name, email, password, confirmPassword, role } = req.body
             let newFullName = full_name.toLowerCase().replace(/ /g, '')
 
             const fullName = await Users.findOne({ full_name: newFullName })
@@ -20,10 +20,13 @@ const authCtrl = {
             if (password.length < 6)
                 return res.status(400).json({ msg: "Password must be at least 6 characters." })
 
+            if (password !== confirmPassword)
+                return res.status(400).json({ msg: "The two passwords must be the same." })
+
             const passwordHash = await hash(password, 12)
 
             const newUser = new Users({
-                full_name: newFullName, email, status: 0, password: passwordHash, role: 1
+                full_name: newFullName, email, status: 0, password: passwordHash, role
             })
 
             const access_token = createAccessToken({ id: newUser._id })
