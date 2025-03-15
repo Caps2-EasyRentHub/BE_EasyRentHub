@@ -13,7 +13,11 @@ const rentalHistorySchema = new Schema(
       ref: "users",
       required: true,
     },
-    
+    landlord: {
+      type: Types.ObjectId,
+      ref: "users",
+      required: true,
+    },
     estateName: {
       type: String,
       required: true,
@@ -65,11 +69,10 @@ const rentalHistorySchema = new Schema(
       type: Number,
       required: true,
     },
-    // status: {
-    //   type: String,
-    //   enum: ["active", "completed", "cancelled"],
-    //   default: "active",
-    // },
+    notes: {
+      type: String,
+      default: "",
+    },
   },
   {
     timestamps: true,

@@ -7,6 +7,7 @@ import { ExpressPeerServer } from "peer";
 import http from "http";
 import authRouter from "./routers/authRouter.js";
 import estateRouter from "./routers/estateRouter.js";
+import rentalHistoryRouter from "./routers/rentalHistoryRouter.js";
 
 const app = express();
 dotenv.config();
@@ -23,6 +24,7 @@ ExpressPeerServer(http, { path: "/" });
 // Routes
 app.use("/api", authRouter);
 app.use("/api", estateRouter);
+app.use("/api", rentalHistoryRouter);
 
 const connectDB = async () => {
   try {
