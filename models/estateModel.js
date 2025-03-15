@@ -62,7 +62,6 @@ const estateSchema = new Schema({
     user: { type: Types.ObjectId, ref: 'user' },
     distance: Number,
     status: Number
-
 }, {
     timestamps: true
 })

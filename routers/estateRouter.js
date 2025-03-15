@@ -13,4 +13,12 @@ estateRouter
 
 estateRouter.get("/getRecommend/:id", auth, estateCtrl.getRecommend);
 
+
+// like post functions
+estateRouter.patch("/estate/:id/like", auth, estateCtrl.likeEstate);
+
+estateRouter.patch("/estate/:id/unlike", auth, estateCtrl.unLikeEstate);
+
+estateRouter.get("/getLikeEstates", auth, estateCtrl.getLikeEstates);
+
 export default estateRouter;
