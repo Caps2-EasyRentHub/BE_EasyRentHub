@@ -73,6 +73,11 @@ const rentalHistorySchema = new Schema(
       type: String,
       default: "",
     },
+    status: {
+      type: String,
+      enum: ['pending', 'approved', 'rejected', 'completed'],
+      default: 'pending'
+    },
   },
   {
     timestamps: true,
