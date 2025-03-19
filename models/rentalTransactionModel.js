@@ -1,7 +1,7 @@
 import mongoose from "mongoose";
 const { Schema, Types, model } = mongoose;
 
-const rentalHistorySchema = new Schema(
+const rentalTransactionSchema = new Schema(
   {
     estate: {
       type: Types.ObjectId,
@@ -75,8 +75,12 @@ const rentalHistorySchema = new Schema(
     },
     status: {
       type: String,
-      enum: ['pending', 'approved', 'rejected', 'completed'],
+      enum: ['pending', 'approved', 'rejected', 'completed', 'cancelled'],
       default: 'pending'
+    },
+    isBooked: {
+      type: Boolean,
+      default: false
     },
   },
   {
@@ -84,4 +88,4 @@ const rentalHistorySchema = new Schema(
   }
 );
 
-export default model("rentalHistory", rentalHistorySchema);
+export default model("rentalTransaction", rentalTransactionSchema);

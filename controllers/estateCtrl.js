@@ -41,19 +41,24 @@ function haversine(lat1, lon1, lat2, lon2) {
 const estateCtrl = {
   createEstate: async (req, res) => {
     try {
-      const { name, listType, images, address, price, property } = req.body;
+      const { name, images, address, price, property } = req.body;
+
+      if (req.user.role != "Landlord") {
+        return res
+          .status(403)
+          .json({ msg: "Only landlord can create booking request." });
+      }
 
       if (images.length === 0)
         return res.status(400).json({ msg: "Please add your photo." });
 
       const newEstate = new Estate({
         name,
-        listType,
         images,
         address,
         price,
         property,
-        status: 0,
+        status: "available",
         user: req.user._id,
       });
       await newEstate.save();
@@ -62,7 +67,7 @@ const estateCtrl = {
         msg: "Created Estate!",
         newEstate: {
           ...newEstate._doc,
-          user: req.user,
+          user: req.user._id,
         },
       });
     } catch (err) {
