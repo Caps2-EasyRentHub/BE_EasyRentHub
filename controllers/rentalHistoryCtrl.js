@@ -1,4 +1,4 @@
-import RentalHistory from "../models/rentalTransactionModel.js";
+import RentalTransaction from "../models/rentalTransactionModel.js";
 import Estate from "../models/estateModel.js";
 
 const rentalHistoryCtrl = {
@@ -70,7 +70,7 @@ const rentalHistoryCtrl = {
           .json({ msg: "You do not have permission to access this resource." });
       }
 
-      const rentalHistories = await RentalHistory.find(filter)
+      const rental = await RentalTransaction.find(filter)
         .populate("tenant", "full_name email avatar mobile")
         .populate("landlord", "full_name email avatar mobile")
         .populate("estate", "name address images property")
@@ -78,8 +78,8 @@ const rentalHistoryCtrl = {
 
       res.json({
         msg: "All rental histories retrieved successfully!",
-        rentalHistories,
-        count: rentalHistories.length,
+        rental,
+        count: rental.length,
       });
     } catch (err) {
       return res.status(500).json({ msg: err.message });
