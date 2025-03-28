@@ -9,6 +9,7 @@ import authRouter from "./routers/authRouter.js";
 import estateRouter from "./routers/estateRouter.js";
 import rentalHistoryRouter from "./routers/rentalHistoryRouter.js";
 import bookingRouter from "./routers/bookingRouter.js";
+import landlordEstateRouter from "./routers/landLordEstateRouter.js";
 
 const app = express();
 dotenv.config();
@@ -27,6 +28,7 @@ app.use("/api", authRouter);
 app.use("/api", estateRouter);
 app.use("/api", rentalHistoryRouter);
 app.use("/api", bookingRouter);
+app.use("/api/landlord", landlordEstateRouter);
 
 const connectDB = async () => {
   try {

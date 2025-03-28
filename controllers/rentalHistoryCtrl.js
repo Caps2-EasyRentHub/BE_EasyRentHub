@@ -85,6 +85,31 @@ const rentalHistoryCtrl = {
       return res.status(500).json({ msg: err.message });
     }
   },
+
+  getTenantBookingsHistory: async (req, res) => {
+    try {
+      if (req.user.role !== "Tenant") {
+        return res.status(403).json({
+          msg: "You do not have permission to access this resource.",
+        });
+      }
+
+      const bookings = await RentalTransaction.find({
+        tenant: req.user._id,
+      })
+        .populate("landlord", "full_name email avatar mobile")
+        .populate("estate", "name address images property")
+        .sort({ createdAt: -1 });
+
+      res.json({
+        msg: "Tenant bookings retrieved successfully",
+        bookings,
+        count: bookings.length,
+      });
+    } catch (err) {
+      return res.status(500).json({ msg: err.message });
+    }
+  },
 };
 
 export default rentalHistoryCtrl;

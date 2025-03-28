@@ -16,4 +16,10 @@ rentalHistoryRouter.get(
   rentalHistoryCtrl.getAllRentalHistory
 );
 
+rentalHistoryRouter.get(
+  "/booking-history",
+  auth,
+  rentalHistoryCtrl.getTenantBookingsHistory
+);
+
 export default rentalHistoryRouter;
