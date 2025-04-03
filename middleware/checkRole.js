@@ -16,4 +16,16 @@ async function landlordRole(req, res, next) {
     });
 }
 
+async function adminRole(req, res, next) {
+    const role = await checkRole(req.user._id);
+    if (role === "Admin") {
+        req.role = role;
+        return next();
+    }
+    return res.status(401).json({
+        title: "không đủ quyền",
+        message: "Chỉ dành cho Admin",
+    });
+}
+
 module.exports = landlordRole;

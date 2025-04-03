@@ -10,6 +10,7 @@ import estateRouter from "./routers/estateRouter.js";
 import rentalHistoryRouter from "./routers/rentalHistoryRouter.js";
 import bookingRouter from "./routers/bookingRouter.js";
 import landlordEstateRouter from "./routers/landLordEstateRouter.js";
+import favoriteRouter from "./routers/favoriteRouter.js";
 
 const app = express();
 dotenv.config();
@@ -29,6 +30,7 @@ app.use("/api", estateRouter);
 app.use("/api", rentalHistoryRouter);
 app.use("/api", bookingRouter);
 app.use("/api/landlord", landlordEstateRouter);
+app.use("/api/favorite", favoriteRouter)
 
 const connectDB = async () => {
   try {
