@@ -74,6 +74,32 @@ const estateCtrl = {
       return res.status(500).json({ msg: err.message });
     }
   },
+  getEstates: async (req, res) => {
+    try {
+      const features = new APIfeatures(
+        Estate.find({}),
+        req.query
+      ).paginating();
+
+      const estates = await features.query
+        .sort("price")
+        .populate({
+          path: "reviews",
+          populate: {
+            path: "user likes",
+            select: "-password",
+          },
+        });
+
+      res.json({
+        msg: "Success!",
+        result: estates.length,
+        estates,
+      });
+    } catch (err) {
+      return res.status(500).json({ msg: err.message });
+    }
+  },
   updateEstate: async (req, res) => {
     try {
       const { name, listType, images, address, price, property } = req.body;

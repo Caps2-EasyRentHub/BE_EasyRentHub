@@ -6,6 +6,7 @@ import cookieParser from "cookie-parser";
 import { ExpressPeerServer } from "peer";
 import http from "http";
 import authRouter from "./routers/authRouter.js";
+import userRouter from './routers/userRouter.js'
 import estateRouter from "./routers/estateRouter.js";
 import rentalHistoryRouter from "./routers/rentalHistoryRouter.js";
 import bookingRouter from "./routers/bookingRouter.js";
@@ -25,6 +26,7 @@ ExpressPeerServer(http, { path: "/" });
 
 // Routes
 app.use("/api", authRouter);
+app.use("/api", userRouter)
 app.use("/api", estateRouter);
 app.use("/api", rentalHistoryRouter);
 app.use("/api", bookingRouter);
@@ -41,7 +43,7 @@ const connectDB = async () => {
 };
 
 const port = process.env.PORT || 5000;
-server.listen(port, () => {
+server.listen(port, '0.0.0.0', () => {
   console.log("Server is running on port", port);
 });
 
