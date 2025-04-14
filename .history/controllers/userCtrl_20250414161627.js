@@ -31,6 +31,7 @@ const userCtrl = {
 
   addUser: async (req, res) => {
     try {
+      // Check if the current user has permission to add users
       if (req.user.role !== "Admin") {
         return res.status(401).json({
           title: "Insufficient permissions",
@@ -39,14 +40,16 @@ const userCtrl = {
       }
 
       const { full_name, email, password, mobile, role, address, avatar } = req.body;
-     
+
+      // Validate required fields
       if (!full_name || !email || !password) {
         return res.status(400).json({
           title: "Missing required fields",
           message: "Full name, email and password are required"
         });
       }
-    
+
+      // Check email format
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (!emailRegex.test(email)) {
         return res.status(400).json({
@@ -54,7 +57,8 @@ const userCtrl = {
           message: "Please provide a valid email address"
         });
       }
-     
+
+      // Check if user with this email already exists
       const existingUser = await Users.findOne({ email });
       if (existingUser) {
         return res.status(400).json({
@@ -62,7 +66,8 @@ const userCtrl = {
           message: "This email address is already registered"
         });
       }
-   
+
+      // Validate role if provided
       if (role) {
         const validRoles = ["Tenant", "Landlord", "Admin"];
         if (!validRoles.includes(role)) {

@@ -55,7 +55,7 @@ const userSchema = new Schema({
     },
     role: {
         type: String,
-        enum: ["Tenant", "Landlord","Admin"],
+        enum: ["Tenant", "Landlord"],
         default: "Tenant"
     },
     status: Number
