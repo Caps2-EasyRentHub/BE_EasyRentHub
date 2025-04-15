@@ -43,7 +43,7 @@ const estateCtrl = {
     try {
       const { name, images, address, price, property } = req.body;
 
-      if (req.user.role !== "Landlord" && req.user.role !== "Admin") {
+      if (req.user.role != "Landlord") {
         return res
           .status(403)
           .json({ msg: "Only landlord can create booking request." });
