@@ -12,6 +12,7 @@ import rentalHistoryRouter from "./routers/rentalHistoryRouter.js";
 import bookingRouter from "./routers/bookingRouter.js";
 import landlordEstateRouter from "./routers/landLordEstateRouter.js";
 import favoriteRouter from "./routers/favoriteRouter.js";
+import reviewRouter from './routers/reviewRouter.js'
 
 const app = express();
 dotenv.config();
@@ -29,6 +30,7 @@ ExpressPeerServer(http, { path: "/" });
 app.use("/api", authRouter);
 app.use("/api", userRouter)
 app.use("/api", estateRouter);
+app.use("/api", reviewRouter);
 app.use("/api", rentalHistoryRouter);
 app.use("/api", bookingRouter);
 app.use("/api/landlord", landlordEstateRouter);
