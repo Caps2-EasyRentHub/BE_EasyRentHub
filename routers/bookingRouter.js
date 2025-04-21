@@ -24,4 +24,12 @@ bookingRouter.get(
   bookingCtrl.getTenantBookings
 );
 
+bookingRouter.get(
+  "/rental/tenant-bookings/:id",
+  auth,
+  bookingCtrl.getUserBookings
+);
+
+bookingRouter.get("/rental/all-bookings", auth, bookingCtrl.getAllBookings);
+
 export default bookingRouter;

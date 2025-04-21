@@ -6,13 +6,13 @@ import cookieParser from "cookie-parser";
 import { ExpressPeerServer } from "peer";
 import http from "http";
 import authRouter from "./routers/authRouter.js";
-import userRouter from './routers/userRouter.js'
+import userRouter from "./routers/userRouter.js";
 import estateRouter from "./routers/estateRouter.js";
 import rentalHistoryRouter from "./routers/rentalHistoryRouter.js";
 import bookingRouter from "./routers/bookingRouter.js";
 import landlordEstateRouter from "./routers/landLordEstateRouter.js";
 import favoriteRouter from "./routers/favoriteRouter.js";
-import reviewRouter from './routers/reviewRouter.js'
+import reviewRouter from "./routers/reviewRouter.js";
 
 const app = express();
 dotenv.config();
@@ -28,13 +28,13 @@ ExpressPeerServer(http, { path: "/" });
 
 // Routes
 app.use("/api", authRouter);
-app.use("/api", userRouter)
+app.use("/api", userRouter);
 app.use("/api", estateRouter);
 app.use("/api", reviewRouter);
 app.use("/api", rentalHistoryRouter);
 app.use("/api", bookingRouter);
 app.use("/api/landlord", landlordEstateRouter);
-app.use("/api/favorite", favoriteRouter)
+app.use("/api/favorite", favoriteRouter);
 
 const connectDB = async () => {
   try {
@@ -46,9 +46,11 @@ const connectDB = async () => {
   }
 };
 
-const port = process.env.PORT || 5000;
-server.listen(port, '0.0.0.0', () => {
-  console.log("Server is running on port", port);
+const IP_ADDRESS = "192.168.1.136";
+const PORT = process.env.PORT || 5000;
+
+server.listen(PORT, IP_ADDRESS, () => {
+  console.log(`Server running at http://${IP_ADDRESS}:${PORT}`);
 });
 
 connectDB();
