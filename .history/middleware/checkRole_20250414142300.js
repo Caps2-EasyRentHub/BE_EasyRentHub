@@ -1,7 +1,7 @@
-import User from "../models/userModel.js";
+const Account = require("../models/userModel");
 
 async function checkRole(_id) {
-    const account = await User.findById(_id);
+    const account = await Account.findById(_id);
     return account.role;
 }
 
@@ -29,4 +29,8 @@ async function adminRole(req, res, next) {
     });
 }
 
-export { landlordRole, adminRole, checkRole };
+module.exports = {
+    landlordRole,
+    adminRole,
+    checkRole
+};

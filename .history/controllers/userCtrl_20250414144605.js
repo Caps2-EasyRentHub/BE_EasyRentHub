@@ -1,4 +1,5 @@
 import Users from "../models/userModel.js";
+import Estates from "../models/estateModel.js";
 import bcrypt from "bcrypt";
 
 const userCtrl = {
@@ -29,107 +30,15 @@ const userCtrl = {
     }
   },
 
-  addUser: async (req, res) => {
-    try {
-      if (req.user.role !== "Admin") {
-        return res.status(401).json({
-          title: "Insufficient permissions",
-          message: "Only Admin users can add new users to the system"
-        });
-      }
-
-      const { full_name, email, password, mobile, role, address, avatar } = req.body;
-     
-      if (!full_name || !email || !password) {
-        return res.status(400).json({
-          title: "Missing required fields",
-          message: "Full name, email and password are required"
-        });
-      }
-    
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(email)) {
-        return res.status(400).json({
-          title: "Invalid email format",
-          message: "Please provide a valid email address"
-        });
-      }
-     
-      const existingUser = await Users.findOne({ email });
-      if (existingUser) {
-        return res.status(400).json({
-          title: "Email already in use",
-          message: "This email address is already registered"
-        });
-      }
-   
-      if (role) {
-        const validRoles = ["Tenant", "Landlord", "Admin"];
-        if (!validRoles.includes(role)) {
-          return res.status(400).json({
-            title: "Invalid role",
-            message: "Role must be one of: Tenant, Landlord, Admin"
-          });
-        }
-      }
-
-      // Hash password
-      const passwordHash = await bcrypt.hash(password, 12);
-
-      // Create new user object
-      const newUser = new Users({
-        full_name,
-        email,
-        password: passwordHash,
-        role: role || "Tenant",
-        status: 1, // Assuming status 1 means active
-        mobile: mobile || "",
-        avatar: avatar || undefined // Use the default from schema if not provided
-      });
-
-      // Add address if provided
-      if (address) {
-        newUser.address = {
-          name: address.name || "",
-          road: address.road || "",
-          quarter: address.quarter || "",
-          city: address.city || "",
-          country: address.country || "",
-          lat: address.lat || "",
-          lng: address.lng || ""
-        };
-      }
-
-      // Save the new user
-      await newUser.save();
-
-      // Return success without sending back the password
-      res.status(201).json({
-        msg: "User created successfully",
-        user: {
-          _id: newUser._id,
-          full_name: newUser.full_name,
-          email: newUser.email,
-          role: newUser.role,
-          avatar: newUser.avatar,
-          mobile: newUser.mobile,
-          address: newUser.address,
-          status: newUser.status,
-          createdAt: newUser.createdAt
-        }
-      });
-    } catch (err) {
-      return res.status(500).json({ msg: err.message });
-    }
-  },
-
   updateUser: async (req, res) => {
     try {
       const { fullname, email, phone, avatar, role, password } = req.body;
       
+
       const user = await Users.findById(req.params.id);
       if (!user) return res.status(404).json({ msg: "User not found" });
       
+
       if (req.user.role !== "Admin" && req.user._id.toString() !== req.params.id) {
         return res.status(401).json({
           title: "Insufficient permissions",

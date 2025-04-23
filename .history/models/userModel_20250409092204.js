@@ -55,7 +55,7 @@ const userSchema = new Schema({
     },
     role: {
         type: String,
-        enum: ["Tenant", "Landlord","Admin"],
+        enum: ["Tenant", "Landlord"],
         default: "Tenant"
     },
     status: Number
@@ -63,6 +63,5 @@ const userSchema = new Schema({
     timestamps: true
 })
 
-const Users = model('user', userSchema);
 
-export default Users;
+export default model('users', userSchema)
