@@ -3,8 +3,8 @@ import { getFavoriteRooms, addFavoriteRoom, removeFavoriteRoom } from "../contro
 
 const router = express.Router();
 
-router.get("/:userId", getFavoriteRooms);
-router.post("/", addFavoriteRoom);
-router.delete("/", removeFavoriteRoom);
+// router.get("/:userId", getFavoriteRooms);
+// router.post("/", addFavoriteRoom);
+// router.delete("/", removeFavoriteRoom);
 
 export default router;

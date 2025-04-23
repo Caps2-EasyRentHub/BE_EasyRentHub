@@ -10,12 +10,12 @@ const rentalTransactionSchema = new Schema(
     },
     tenant: {
       type: Types.ObjectId,
-      ref: "users",
+      ref: "user",
       required: true,
     },
     landlord: {
       type: Types.ObjectId,
-      ref: "users",
+      ref: "user",
       required: true,
     },
     estateName: {
@@ -65,6 +65,10 @@ const rentalTransactionSchema = new Schema(
       type: Date,
       required: true,
     },
+    endDate: {
+      type: Date,
+      required: true,
+    },
     rentalPrice: {
       type: Number,
       required: true,
@@ -75,12 +79,12 @@ const rentalTransactionSchema = new Schema(
     },
     status: {
       type: String,
-      enum: ['pending', 'approved', 'rejected', 'completed', 'cancelled'],
-      default: 'pending'
+      enum: ["pending", "approved", "rejected", "cancelled"],
+      default: "pending",
     },
     isBooked: {
       type: Boolean,
-      default: false
+      default: false,
     },
   },
   {

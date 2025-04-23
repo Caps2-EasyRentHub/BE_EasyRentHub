@@ -2,10 +2,25 @@ import Users from "../models/userModel.js";
 import RentalTransaction from "../models/rentalTransactionModel.js";
 import Estate from "../models/estateModel.js";
 
+class APIfeatures {
+  constructor(query, queryString) {
+    this.query = query;
+    this.queryString = queryString;
+  }
+
+  paginating() {
+    const page = this.queryString.page * 1 || 1;
+    const limit = this.queryString.limit * 1 || 9;
+    const skip = (page - 1) * limit;
+    this.query = this.query.skip(skip).limit(limit);
+    return this;
+  }
+}
+
 const bookingCtrl = {
   createBookingRequest: async (req, res) => {
     try {
-      const { estateId, startDate, notes } = req.body;
+      const { estateId, startDate, endDate, notes } = req.body;
 
       if (req.user.role != "Tenant") {
         return res
@@ -25,7 +40,7 @@ const bookingCtrl = {
         });
       }
 
-      if (!estateId || !startDate || !notes) {
+      if (!estateId || !startDate || !endDate || !notes) {
         return res
           .status(400)
           .json({ msg: "Please provide all required fields." });
@@ -56,6 +71,7 @@ const bookingCtrl = {
         property: estate.property,
         images: estate.images,
         startDate,
+        endDate,
         rentalPrice: estate.price,
         notes,
         status: "pending",
@@ -126,10 +142,10 @@ const bookingCtrl = {
     try {
       const { rentalHistoryId } = req.params;
 
-      if (req.user.role !== "Tenant") {
+      if (req.user.role !== "Landlord") {
         return res
           .status(403)
-          .json({ msg: "Only tenants can cancel booking request." });
+          .json({ msg: "Only landlord can cancel booking request." });
       }
 
       const rental = await RentalTransaction.findById(rentalHistoryId);
@@ -139,7 +155,7 @@ const bookingCtrl = {
           .json({ msg: "Only tenants can cancel booking requests." });
       }
 
-      if (rental.tenant.toString() !== req.user._id.toString()) {
+      if (rental.landlord.toString() !== req.user._id.toString()) {
         return res.status(403).json({
           msg: "You are not authorized to cancel this booking request.",
         });
@@ -191,6 +207,75 @@ const bookingCtrl = {
         msg: "Landlord bookings retrieved successfully!",
         bookings,
         count: bookings.length,
+      });
+    } catch (err) {
+      return res.status(500).json({ msg: err.message });
+    }
+  },
+
+  getUserBookings: async (req, res) => {
+    try {
+      const userId = req.params.id;
+
+      if (!userId) {
+        return res.status(400).json({ msg: "User ID is required" });
+      }
+
+      const user = await Users.findById(userId);
+      if (!user) {
+        return res.status(404).json({ msg: "User not found" });
+      }
+
+      let bookings;
+
+      if (user.role === "Tenant") {
+        bookings = await RentalTransaction.find({
+          tenant: userId,
+          status: { $in: ["pending", "approved", "rejected", "cancelled"] },
+        })
+          .populate("landlord", "full_name email avatar mobile")
+          .populate("estate", "name address images property status price")
+          .sort({ createdAt: -1 });
+      } else if (user.role === "Landlord") {
+        bookings = await RentalTransaction.find({
+          landlord: userId,
+          status: { $in: ["pending", "approved", "rejected", "cancelled"] },
+        })
+          .populate("tenant", "full_name email avatar mobile")
+          .populate("estate", "name address images property status price")
+          .sort({ createdAt: -1 });
+      } else {
+        return res.status(400).json({ msg: "Invalid user role" });
+      }
+
+      res.json({
+        msg: "User bookings retrieved successfully!",
+        bookings,
+        count: bookings.length,
+        userRole: user.role,
+      });
+    } catch (err) {
+      return res.status(500).json({ msg: err.message });
+    }
+  },
+
+  getAllBookings: async (req, res) => {
+    try {
+      const bookings = new APIfeatures(
+        RentalTransaction.find(),
+        req.query
+      ).paginating();
+
+      const rentalBookings = await bookings.query
+        .sort("-createdAt")
+        .populate("tenant", "full_name email avatar mobile")
+        .populate("landlord", "full_name email avatar mobile")
+        .populate("estate", "name address images property status price");
+
+      res.json({
+        msg: "All bookings retrieved successfully!",
+        result: rentalBookings.length,
+        bookings: rentalBookings,
       });
     } catch (err) {
       return res.status(500).json({ msg: err.message });
