@@ -84,7 +84,7 @@ const estateCtrl = {
         .populate({
           path: "reviews",
           populate: {
-            path: "user",
+            path: "user likes",
             select: "-password",
           },
         });
@@ -113,12 +113,13 @@ const estateCtrl = {
           property,
         }
       )
-        .populate("user likes", "avatar full_name")
+        .populate("user likes", "avatar full_name", "users")
         .populate({
           path: "reviews",
           populate: {
-            path: "user",
+            path: "user likes",
             select: "-password",
+            model: "users",
           },
         });
 
@@ -164,7 +165,7 @@ const estateCtrl = {
         .populate({
           path: "reviews",
           populate: {
-            path: "user",
+            path: "user likes",
             select: "-password",
           },
         });
@@ -207,6 +208,7 @@ const estateCtrl = {
               return res.json();
             })
             .then((res) => {
+              console.log(res);
               if (res.code === "Ok") {
                 totalDistance = 0;
                 const coords = res.routes[0].geometry.coordinates;

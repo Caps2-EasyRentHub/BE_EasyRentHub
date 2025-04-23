@@ -80,12 +80,13 @@ const estateCtrl = {
 
       const estates = await features.query
         .sort("price")
-        .populate("user likes", "avatar full_name")
+        .populate("user likes", "avatar full_name", "users")
         .populate({
           path: "reviews",
           populate: {
-            path: "user",
+            path: "user likes",
             select: "-password",
+            model: "users"
           },
         });
 
@@ -113,12 +114,13 @@ const estateCtrl = {
           property,
         }
       )
-        .populate("user likes", "avatar full_name")
+        .populate("user likes", "avatar full_name", "users")
         .populate({
           path: "reviews",
           populate: {
-            path: "user",
+            path: "user likes",
             select: "-password",
+            model: "users",
           },
         });
 
@@ -160,12 +162,13 @@ const estateCtrl = {
   getEstate: async (req, res) => {
     try {
       const estate = await Estate.findById(req.params.id)
-        .populate("user likes", "avatar full_name address")
+        .populate("user likes", "avatar full_name address", "users")
         .populate({
           path: "reviews",
           populate: {
-            path: "user",
+            path: "user likes",
             select: "-password",
+            model: "users"
           },
         });
 
@@ -207,6 +210,7 @@ const estateCtrl = {
               return res.json();
             })
             .then((res) => {
+              console.log(res);
               if (res.code === "Ok") {
                 totalDistance = 0;
                 const coords = res.routes[0].geometry.coordinates;

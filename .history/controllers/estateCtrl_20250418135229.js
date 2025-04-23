@@ -43,7 +43,7 @@ const estateCtrl = {
     try {
       const { name, images, address, price, property } = req.body;
 
-      if (req.user.role != "Landlord") {
+      if (req.user.role !== "Landlord" && req.user.role !== "Admin") {
         return res
           .status(403)
           .json({ msg: "Only landlord can create booking request." });
@@ -76,15 +76,17 @@ const estateCtrl = {
   },
   getEstates: async (req, res) => {
     try {
-      const features = new APIfeatures(Estate.find({}), req.query).paginating();
+      const features = new APIfeatures(
+        Estate.find({}),
+        req.query
+      ).paginating();
 
       const estates = await features.query
         .sort("price")
-        .populate("user likes", "avatar full_name")
         .populate({
           path: "reviews",
           populate: {
-            path: "user",
+            path: "user likes",
             select: "-password",
           },
         });
@@ -113,12 +115,13 @@ const estateCtrl = {
           property,
         }
       )
-        .populate("user likes", "avatar full_name")
+        .populate("user likes", "avatar full_name", "users")
         .populate({
           path: "reviews",
           populate: {
-            path: "user",
+            path: "user likes",
             select: "-password",
+            model: "user",
           },
         });
 
@@ -144,7 +147,6 @@ const estateCtrl = {
         _id: req.params.id,
         user: req.user._id,
       });
-      await Review.deleteMany({ _id: { $in: estate.reviews } });
 
       res.json({
         msg: "Deleted Estate!",
@@ -160,12 +162,13 @@ const estateCtrl = {
   getEstate: async (req, res) => {
     try {
       const estate = await Estate.findById(req.params.id)
-        .populate("user likes", "avatar full_name address")
+        .populate("user likes", "avatar full_name address", "users")
         .populate({
           path: "reviews",
           populate: {
-            path: "user",
+            path: "user likes",
             select: "-password",
+            model: "users",
           },
         });
 
@@ -207,6 +210,7 @@ const estateCtrl = {
               return res.json();
             })
             .then((res) => {
+              console.log(res);
               if (res.code === "Ok") {
                 totalDistance = 0;
                 const coords = res.routes[0].geometry.coordinates;
@@ -286,22 +290,6 @@ const estateCtrl = {
       return res.status(500).json({ msg: err.message });
     }
   },
-  getUserEstates: async (req, res) => {
-    try {
-      const features = new APIfeatures(
-        Estate.find({ user: req.params.id }),
-        req.query
-      ).paginating();
-      const estates = await features.query.sort("-createdAt");
-
-      res.json({
-        estates,
-        result: estates.length,
-      });
-    } catch (err) {
-      return res.status(500).json({ msg: err.message });
-    }
-  },
   getLikeEstates: async (req, res) => {
     try {
       const features = new APIfeatures(
@@ -316,17 +304,6 @@ const estateCtrl = {
         likeEstates,
         result: likeEstates.length,
       });
-    } catch (err) {
-      return res.status(500).json({ msg: err.message });
-    }
-  },
-  searchEstates: async (req, res) => {
-    try {
-      const name = req.query.name || "";
-      const estates = await Estate.find({
-        name: { $regex: name },
-      }).limit(10);
-      res.json({ estates });
     } catch (err) {
       return res.status(500).json({ msg: err.message });
     }
