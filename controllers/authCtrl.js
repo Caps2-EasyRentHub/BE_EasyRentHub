@@ -55,7 +55,6 @@ const authCtrl = {
     login: async (req, res) => {
         try {
             const { email, password } = req.body
-            console.log("email: " + email + "password: " + password)
 
             const user = await Users.findOne({ email })
 
