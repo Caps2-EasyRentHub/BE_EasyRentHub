@@ -46,7 +46,7 @@ const connectDB = async () => {
   }
 };
 
-const IP_ADDRESS = "0.0.0.0";
+const IP_ADDRESS = "0.0.0.0 ";
 const PORT = process.env.PORT || 5000;
 
 server.listen(PORT, IP_ADDRESS, () => {
