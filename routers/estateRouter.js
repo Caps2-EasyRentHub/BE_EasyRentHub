@@ -1,6 +1,7 @@
 import express from "express";
 import estateCtrl from "../controllers/estateCtrl.js";
 import auth from "../middleware/auth.js";
+import recommendationCtrl from "../controllers/recommendationCtrl.js";
 
 const estateRouter = express.Router();
 estateRouter.get("/searchEstates", auth, estateCtrl.searchEstates);
@@ -24,5 +25,11 @@ estateRouter.patch("/estate/:id/unlike", auth, estateCtrl.unLikeEstate);
 estateRouter.get("/user_estates/:id", auth, estateCtrl.getUserEstates);
 
 estateRouter.get("/getLikeEstates", auth, estateCtrl.getLikeEstates);
+
+estateRouter.get(
+  "/recommendations/content-based",
+  auth,
+  recommendationCtrl.getContentBasedRecommendations
+);
 
 export default estateRouter;
