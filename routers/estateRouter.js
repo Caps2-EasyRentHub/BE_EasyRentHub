@@ -32,4 +32,15 @@ estateRouter.get(
   recommendationCtrl.getContentBasedRecommendations
 );
 
+estateRouter.post(
+  "/recommendations/price",
+  auth,
+  recommendationCtrl.getPriceRecommendation
+);
+
+estateRouter.get(
+  "/recommendations/price-suggestions",
+  recommendationCtrl.getPriceSuggestions
+);
+
 export default estateRouter;

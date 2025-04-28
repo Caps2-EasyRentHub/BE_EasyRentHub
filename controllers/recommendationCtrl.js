@@ -1,4 +1,8 @@
 import { getRecommendationsForUser } from "../utils/recommendation/contentBasedFiltering.js";
+import {
+  getEstateRecommendedPrice,
+  getSuggestedPriceRanges,
+} from "../utils/recommendation/priceRecommendation.js";
 
 const recommendationCtrl = {
   getContentBasedRecommendations: async (req, res) => {
@@ -58,6 +62,78 @@ const recommendationCtrl = {
       return res
         .status(500)
         .json({ msg: "Server error: Failed to fetch recommendations" });
+    }
+  },
+
+  getPriceRecommendation: async (req, res) => {
+    try {
+      console.log(`[API] Received price recommendation request:`, req.body);
+
+      // Validate required fields
+      const { bedrooms, bathrooms, floors, city, country, lat, lng } = req.body;
+
+      if (
+        bedrooms === undefined ||
+        bathrooms === undefined ||
+        floors === undefined
+      ) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Missing required property details (bedrooms, bathrooms, floors)",
+        });
+      }
+
+      if (!lat || !lng) {
+        return res.status(400).json({
+          success: false,
+          message: "Missing required location coordinates (lat, lng)",
+        });
+      }
+
+      const estateData = {
+        bedrooms: parseInt(bedrooms),
+        bathrooms: parseInt(bathrooms),
+        floors: parseInt(floors),
+        city: city || "",
+        country: country || "",
+        lat: parseFloat(lat),
+        lng: parseFloat(lng),
+      };
+
+      // Get recommended price
+      const result = await getEstateRecommendedPrice(estateData);
+
+      res.json(result);
+    } catch (err) {
+      console.error(`Error in getPriceRecommendation:`, {
+        message: err.message,
+        stack: err.stack,
+      });
+      return res.status(500).json({
+        success: false,
+        message: "Server error: Failed to calculate price recommendation",
+        error: err.message,
+      });
+    }
+  },
+
+  // API để lấy khoảng giá tham khảo cho các loại căn hộ khác nhau
+  getPriceSuggestions: async (req, res) => {
+    try {
+      console.log("[API] Getting price suggestions");
+      const result = await getSuggestedPriceRanges();
+      res.json(result);
+    } catch (err) {
+      console.error("Error in getPriceSuggestions:", {
+        message: err.message,
+        stack: err.stack,
+      });
+      return res.status(500).json({
+        success: false,
+        message: "Server error: Failed to fetch price suggestions",
+        error: err.message,
+      });
     }
   },
 };

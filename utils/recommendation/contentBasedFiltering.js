@@ -469,4 +469,4 @@ const getRecommendationsForUser = async (userId, limit = 10) => {
   }
 };
 
-export { getRecommendationsForUser };
+export { extractEstateFeatures, getRecommendationsForUser };
