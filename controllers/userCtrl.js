@@ -1,5 +1,6 @@
 import Users from "../models/userModel.js";
 import bcrypt from "bcrypt";
+import Estates from "../models/estateModel.js";
 
 const userCtrl = {
   getUser: async (req, res) => {
@@ -12,13 +13,13 @@ const userCtrl = {
       return res.status(500).json({ msg: err.message });
     }
   },
-  
+
   getAllUsers: async (req, res) => {
     try {
       if (req.user.role !== "Admin") {
         return res.status(401).json({
           title: "Insufficient permissions",
-          message: "Only Admin users can access this resource"
+          message: "Only Admin users can access this resource",
         });
       }
 
@@ -34,41 +35,42 @@ const userCtrl = {
       if (req.user.role !== "Admin") {
         return res.status(401).json({
           title: "Insufficient permissions",
-          message: "Only Admin users can add new users to the system"
+          message: "Only Admin users can add new users to the system",
         });
       }
 
-      const { full_name, email, password, mobile, role, address, avatar } = req.body;
-     
+      const { full_name, email, password, mobile, role, address, avatar } =
+        req.body;
+
       if (!full_name || !email || !password) {
         return res.status(400).json({
           title: "Missing required fields",
-          message: "Full name, email and password are required"
+          message: "Full name, email and password are required",
         });
       }
-    
+
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (!emailRegex.test(email)) {
         return res.status(400).json({
           title: "Invalid email format",
-          message: "Please provide a valid email address"
+          message: "Please provide a valid email address",
         });
       }
-     
+
       const existingUser = await Users.findOne({ email });
       if (existingUser) {
         return res.status(400).json({
           title: "Email already in use",
-          message: "This email address is already registered"
+          message: "This email address is already registered",
         });
       }
-   
+
       if (role) {
         const validRoles = ["Tenant", "Landlord", "Admin"];
         if (!validRoles.includes(role)) {
           return res.status(400).json({
             title: "Invalid role",
-            message: "Role must be one of: Tenant, Landlord, Admin"
+            message: "Role must be one of: Tenant, Landlord, Admin",
           });
         }
       }
@@ -84,7 +86,7 @@ const userCtrl = {
         role: role || "Tenant",
         status: 1, // Assuming status 1 means active
         mobile: mobile || "",
-        avatar: avatar || undefined // Use the default from schema if not provided
+        avatar: avatar || undefined, // Use the default from schema if not provided
       });
 
       // Add address if provided
@@ -96,7 +98,7 @@ const userCtrl = {
           city: address.city || "",
           country: address.country || "",
           lat: address.lat || "",
-          lng: address.lng || ""
+          lng: address.lng || "",
         };
       }
 
@@ -115,8 +117,8 @@ const userCtrl = {
           mobile: newUser.mobile,
           address: newUser.address,
           status: newUser.status,
-          createdAt: newUser.createdAt
-        }
+          createdAt: newUser.createdAt,
+        },
       });
     } catch (err) {
       return res.status(500).json({ msg: err.message });
@@ -126,14 +128,17 @@ const userCtrl = {
   updateUser: async (req, res) => {
     try {
       const { fullname, email, phone, avatar, role, password } = req.body;
-      
+
       const user = await Users.findById(req.params.id);
       if (!user) return res.status(404).json({ msg: "User not found" });
-      
-      if (req.user.role !== "Admin" && req.user._id.toString() !== req.params.id) {
+
+      if (
+        req.user.role !== "Admin" &&
+        req.user._id.toString() !== req.params.id
+      ) {
         return res.status(401).json({
           title: "Insufficient permissions",
-          message: "You don't have permission to edit other users' information"
+          message: "You don't have permission to edit other users' information",
         });
       }
 
@@ -148,7 +153,7 @@ const userCtrl = {
         if (!validRoles.includes(role)) {
           return res.status(400).json({
             title: "Invalid role",
-            message: "Role must be one of: Tenant, Admin, Landlord"
+            message: "Role must be one of: Tenant, Admin, Landlord",
           });
         }
         updateData.role = role;
@@ -164,22 +169,22 @@ const userCtrl = {
         updateData,
         { new: true }
       ).select("-password");
-      
-      res.json({ 
+
+      res.json({
         msg: "User information updated successfully",
-        user: updatedUser 
+        user: updatedUser,
       });
     } catch (err) {
       return res.status(500).json({ msg: err.message });
     }
   },
-  
+
   deleteUser: async (req, res) => {
     try {
       if (req.user.role !== "Admin") {
         return res.status(401).json({
           title: "Insufficient permissions",
-          message: "Only Admin users can delete accounts"
+          message: "Only Admin users can delete accounts",
         });
       }
 
@@ -191,29 +196,29 @@ const userCtrl = {
       if (req.user._id.toString() === req.params.id) {
         return res.status(400).json({
           title: "Action not allowed",
-          message: "You cannot delete your own account"
+          message: "You cannot delete your own account",
         });
       }
- 
+
       if (user.role === "Admin") {
         const adminCount = await Users.countDocuments({ role: "Admin" });
         if (adminCount <= 1) {
           return res.status(400).json({
             title: "Action not allowed",
-            message: "Cannot delete the last admin account in the system"
+            message: "Cannot delete the last admin account in the system",
           });
         }
       }
-   
+
       await Users.findByIdAndDelete(req.params.id);
-      
-      res.json({ 
-        msg: "User deleted successfully"
+
+      res.json({
+        msg: "User deleted successfully",
       });
     } catch (err) {
       return res.status(500).json({ msg: err.message });
     }
-  }
+  },
 };
 
 export default userCtrl;
