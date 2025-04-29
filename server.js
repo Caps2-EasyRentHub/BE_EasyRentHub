@@ -14,7 +14,6 @@ import landlordEstateRouter from "./routers/landLordEstateRouter.js";
 import favoriteRouter from "./routers/favoriteRouter.js";
 import reviewRouter from "./routers/reviewRouter.js";
 
-
 const app = express();
 dotenv.config();
 app.use(json());
@@ -37,8 +36,6 @@ app.use("/api", bookingRouter);
 app.use("/api/landlord", landlordEstateRouter);
 app.use("/api/favorite", favoriteRouter);
 
-
-
 const connectDB = async () => {
   try {
     await mongoose.connect(process.env.MONGODB_URL);
@@ -49,7 +46,7 @@ const connectDB = async () => {
   }
 };
 
-const IP_ADDRESS = "0.0.0.0";
+const IP_ADDRESS = "192.168.1.2";
 const PORT = process.env.PORT || 5000;
 
 server.listen(PORT, IP_ADDRESS, () => {

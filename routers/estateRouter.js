@@ -1,6 +1,7 @@
 import express from "express";
 import estateCtrl from "../controllers/estateCtrl.js";
 import auth from "../middleware/auth.js";
+import recommendationCtrl from "../controllers/recommendationCtrl.js";
 
 const estateRouter = express.Router();
 estateRouter.get("/searchEstates", auth, estateCtrl.searchEstates);
@@ -28,5 +29,22 @@ estateRouter.get('/authors', estateCtrl.getAllAuthors);
 
 estateRouter.get('/estates/author/:authorId', estateCtrl.getEstatesByAuthorId);
 
+
+estateRouter.get(
+  "/recommendations/content-based",
+  auth,
+  recommendationCtrl.getContentBasedRecommendations
+);
+
+estateRouter.post(
+  "/recommendations/price",
+  auth,
+  recommendationCtrl.getPriceRecommendation
+);
+
+estateRouter.get(
+  "/recommendations/price-suggestions",
+  recommendationCtrl.getPriceSuggestions
+);
 
 export default estateRouter;

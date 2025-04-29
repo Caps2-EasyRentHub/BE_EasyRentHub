@@ -189,12 +189,6 @@ const bookingCtrl = {
 
   getTenantBookings: async (req, res) => {
     try {
-      if (req.user.role !== "Landlord") {
-        return res.status(403).json({
-          msg: "You do not have permission to access this resource.",
-        });
-      }
-
       const bookings = await RentalTransaction.find({
         landlord: req.user._id,
         status: { $in: ["pending", "approved", "rejected", "cancelled"] },
