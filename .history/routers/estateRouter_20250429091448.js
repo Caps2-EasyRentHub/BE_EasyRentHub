@@ -3,6 +3,7 @@ import estateCtrl from "../controllers/estateCtrl.js";
 import auth from "../middleware/auth.js";
 
 const estateRouter = express.Router();
+estateRouter.get("/searchEstates", auth, estateCtrl.searchEstates);
 estateRouter
   .route("/estates")
   .post(auth, estateCtrl.createEstate)
@@ -20,6 +21,9 @@ estateRouter.patch("/estate/:id/like", auth, estateCtrl.likeEstate);
 
 estateRouter.patch("/estate/:id/unlike", auth, estateCtrl.unLikeEstate);
 
+estateRouter.get("/user_estates/:id", auth, estateCtrl.getUserEstates);
+
 estateRouter.get("/getLikeEstates", auth, estateCtrl.getLikeEstates);
+estateRouter.get('/search-by-author', auth, estateCtrl.searchEstatesByAuthor);
 
 export default estateRouter;

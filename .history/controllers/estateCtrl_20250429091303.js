@@ -80,13 +80,12 @@ const estateCtrl = {
 
       const estates = await features.query
         .sort("price")
-        .populate("user likes", "avatar full_name", "users")
+        .populate("user likes", "avatar full_name")
         .populate({
           path: "reviews",
           populate: {
-            path: "user likes",
+            path: "user",
             select: "-password",
-            model: "users"
           },
         });
 
@@ -114,13 +113,12 @@ const estateCtrl = {
           property,
         }
       )
-        .populate("user likes", "avatar full_name", "users")
+        .populate("user likes", "avatar full_name")
         .populate({
           path: "reviews",
           populate: {
-            path: "user likes",
+            path: "user",
             select: "-password",
-            model: "users",
           },
         });
 
@@ -162,13 +160,12 @@ const estateCtrl = {
   getEstate: async (req, res) => {
     try {
       const estate = await Estate.findById(req.params.id)
-        .populate("user likes", "avatar full_name address", "users")
+        .populate("user likes", "avatar full_name address")
         .populate({
           path: "reviews",
           populate: {
-            path: "user likes",
+            path: "user",
             select: "-password",
-            model: "users"
           },
         });
 
@@ -210,7 +207,6 @@ const estateCtrl = {
               return res.json();
             })
             .then((res) => {
-              console.log(res);
               if (res.code === "Ok") {
                 totalDistance = 0;
                 const coords = res.routes[0].geometry.coordinates;
@@ -331,6 +327,44 @@ const estateCtrl = {
         name: { $regex: name },
       }).limit(10);
       res.json({ estates });
+    } catch (err) {
+      return res.status(500).json({ msg: err.message });
+    }
+  },
+  searchEstatesByAuthor: async (req, res) => {
+    try {
+      const authorName = req.query.authorName || "";
+      
+      // Find users matching the author name
+      const users = await Users.find({
+        full_name: { $regex: authorName, $options: 'i' }
+      }).select('_id');
+      
+      // Get user IDs
+      const userIds = users.map(user => user._id);
+      
+      // Find estates created by these users
+      const features = new APIfeatures(
+        Estate.find({ user: { $in: userIds } }),
+        req.query
+      ).paginating();
+      
+      const estates = await features.query
+        .sort("-createdAt")
+        .populate("user likes", "avatar full_name")
+        .populate({
+          path: "reviews",
+          populate: {
+            path: "user",
+            select: "-password",
+          },
+        });
+      
+      res.json({
+        msg: "Success!",
+        result: estates.length,
+        estates,
+      });
     } catch (err) {
       return res.status(500).json({ msg: err.message });
     }

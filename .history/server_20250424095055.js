@@ -13,8 +13,7 @@ import bookingRouter from "./routers/bookingRouter.js";
 import landlordEstateRouter from "./routers/landLordEstateRouter.js";
 import favoriteRouter from "./routers/favoriteRouter.js";
 import reviewRouter from "./routers/reviewRouter.js";
-
-
+import paymentRouter from "./routes/paymentRouter.js";
 const app = express();
 dotenv.config();
 app.use(json());
@@ -36,9 +35,7 @@ app.use("/api", rentalHistoryRouter);
 app.use("/api", bookingRouter);
 app.use("/api/landlord", landlordEstateRouter);
 app.use("/api/favorite", favoriteRouter);
-
-
-
+app.use("/api/revenue", revenueRouter)
 const connectDB = async () => {
   try {
     await mongoose.connect(process.env.MONGODB_URL);

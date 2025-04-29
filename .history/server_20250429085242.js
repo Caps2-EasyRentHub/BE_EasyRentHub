@@ -13,6 +13,7 @@ import bookingRouter from "./routers/bookingRouter.js";
 import landlordEstateRouter from "./routers/landLordEstateRouter.js";
 import favoriteRouter from "./routers/favoriteRouter.js";
 import reviewRouter from "./routers/reviewRouter.js";
+import paymentRouter from "./routers/paymentRouter.js";
 
 
 const app = express();

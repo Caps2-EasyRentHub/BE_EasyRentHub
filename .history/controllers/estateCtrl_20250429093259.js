@@ -80,13 +80,12 @@ const estateCtrl = {
 
       const estates = await features.query
         .sort("price")
-        .populate("user likes", "avatar full_name", "users")
+        .populate("user likes", "avatar full_name")
         .populate({
           path: "reviews",
           populate: {
-            path: "user likes",
+            path: "user",
             select: "-password",
-            model: "users"
           },
         });
 
@@ -114,13 +113,12 @@ const estateCtrl = {
           property,
         }
       )
-        .populate("user likes", "avatar full_name", "users")
+        .populate("user likes", "avatar full_name")
         .populate({
           path: "reviews",
           populate: {
-            path: "user likes",
+            path: "user",
             select: "-password",
-            model: "users",
           },
         });
 
@@ -162,13 +160,12 @@ const estateCtrl = {
   getEstate: async (req, res) => {
     try {
       const estate = await Estate.findById(req.params.id)
-        .populate("user likes", "avatar full_name address", "users")
+        .populate("user likes", "avatar full_name address")
         .populate({
           path: "reviews",
           populate: {
-            path: "user likes",
+            path: "user",
             select: "-password",
-            model: "users"
           },
         });
 
@@ -210,7 +207,6 @@ const estateCtrl = {
               return res.json();
             })
             .then((res) => {
-              console.log(res);
               if (res.code === "Ok") {
                 totalDistance = 0;
                 const coords = res.routes[0].geometry.coordinates;
@@ -331,6 +327,66 @@ const estateCtrl = {
         name: { $regex: name },
       }).limit(10);
       res.json({ estates });
+    } catch (err) {
+      return res.status(500).json({ msg: err.message });
+    }
+  },
+  getAllAuthors: async (req, res) => {
+    try {
+      const authors = await Users.find({})
+        .select('_id full_name avatar') 
+        .sort({ full_name: 1 }); 
+    
+      const authorsWithEstateCount = await Promise.all(
+        authors.map(async (author) => {
+          const estateCount = await Estate.countDocuments({ user: author._id });
+          return {
+            _id: author._id,
+            full_name: author.full_name,
+            avatar: author.avatar,
+            estateCount: estateCount
+          };
+        })
+      );
+      
+      res.json({
+        msg: "Success!",
+        result: authorsWithEstateCount.length,
+        authors: authorsWithEstateCount
+      });
+    } catch (err) {
+      return res.status(500).json({ msg: err.message });
+    }
+  },
+  getEstatesByAuthorId: async (req, res) => {
+    try {
+      const authorId = req.params.authorId;
+      const author = await Users.findById(authorId);
+      if (!author) {
+        return res.status(404).json({ msg: "Author not found" });
+      }
+      const features = new APIfeatures(
+        Estate.find({ user: authorId }),
+        req.query
+      ).paginating();
+      
+      const estates = await features.query
+        .sort("-createdAt")
+        .populate("user likes", "avatar full_name")
+        .populate({
+          path: "reviews",
+          populate: {
+            path: "user",
+            select: "-password",
+          },
+        });
+      
+      res.json({
+        msg: "Success!",
+        authorName: author.full_name,
+        result: estates.length,
+        estates
+      });
     } catch (err) {
       return res.status(500).json({ msg: err.message });
     }

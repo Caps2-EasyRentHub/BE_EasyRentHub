@@ -13,6 +13,7 @@ import bookingRouter from "./routers/bookingRouter.js";
 import landlordEstateRouter from "./routers/landLordEstateRouter.js";
 import favoriteRouter from "./routers/favoriteRouter.js";
 import reviewRouter from "./routers/reviewRouter.js";
+import paymentRouter from "./routers/paymentRouter.js";
 
 
 const app = express();
@@ -36,7 +37,7 @@ app.use("/api", rentalHistoryRouter);
 app.use("/api", bookingRouter);
 app.use("/api/landlord", landlordEstateRouter);
 app.use("/api/favorite", favoriteRouter);
-
+app.use("/api", paymentRouter);
 
 
 const connectDB = async () => {
