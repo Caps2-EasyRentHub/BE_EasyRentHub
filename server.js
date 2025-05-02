@@ -5,6 +5,7 @@ import cors from "cors";
 import cookieParser from "cookie-parser";
 import { ExpressPeerServer } from "peer";
 import http from "http";
+import { Server } from "socket.io";
 import authRouter from "./routers/authRouter.js";
 import userRouter from "./routers/userRouter.js";
 import estateRouter from "./routers/estateRouter.js";
@@ -13,6 +14,9 @@ import bookingRouter from "./routers/bookingRouter.js";
 import landlordEstateRouter from "./routers/landLordEstateRouter.js";
 import favoriteRouter from "./routers/favoriteRouter.js";
 import reviewRouter from "./routers/reviewRouter.js";
+import notifyRouter from "./routers/notifyRouter.js";
+import { SocketServer } from "./utils/socketServer.js";
+import socketMiddleware from "./middleware/socketMiddleware.js";
 
 const app = express();
 dotenv.config();
@@ -22,6 +26,18 @@ app.use(cookieParser());
 
 // Socket
 const server = http.createServer(app);
+const io = new Server(server, {
+  cors: {
+    origin: "*",
+    methods: ["GET", "POST"],
+  },
+});
+
+// Initialize Socket Server
+SocketServer(io);
+
+// Add Socket.io to all routes
+app.use(socketMiddleware(io));
 
 // Create peer server
 ExpressPeerServer(http, { path: "/" });
@@ -31,6 +47,7 @@ app.use("/api", authRouter);
 app.use("/api", userRouter);
 app.use("/api", estateRouter);
 app.use("/api", reviewRouter);
+app.use("/api", notifyRouter);
 app.use("/api", rentalHistoryRouter);
 app.use("/api", bookingRouter);
 app.use("/api/landlord", landlordEstateRouter);
@@ -46,7 +63,7 @@ const connectDB = async () => {
   }
 };
 
-const IP_ADDRESS = "192.168.1.241";
+const IP_ADDRESS = "192.168.1.2";
 const PORT = process.env.PORT || 5000;
 
 server.listen(PORT, IP_ADDRESS, () => {

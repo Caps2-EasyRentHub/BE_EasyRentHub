@@ -1,6 +1,7 @@
 import Users from "../models/userModel.js";
 import RentalTransaction from "../models/rentalTransactionModel.js";
 import Estate from "../models/estateModel.js";
+import rentalNotification from "../utils/rentalNotificationHelper.js";
 
 class APIfeatures {
   constructor(query, queryString) {
@@ -21,12 +22,6 @@ const bookingCtrl = {
   createBookingRequest: async (req, res) => {
     try {
       const { estateId, startDate, endDate, notes } = req.body;
-
-      if (req.user.role != "Tenant") {
-        return res
-          .status(403)
-          .json({ msg: "Only tenants can create booking request." });
-      }
 
       const recentCancellation = await RentalTransaction.findOne({
         tenant: req.user._id,
@@ -52,9 +47,6 @@ const bookingCtrl = {
       }
 
       const landlord = await Users.findById(estate.user);
-      if (!landlord || landlord.role !== "Landlord") {
-        return res.status(404).json({ msg: "Landlord not found or invalid." });
-      }
 
       if (estate.status !== "available") {
         return res.status(400).json({
@@ -84,6 +76,13 @@ const bookingCtrl = {
       estate.user = req.user._id;
       await estate.save();
 
+      // Gửi thông báo cho chủ nhà
+      await rentalNotification.createRentalNotification(
+        newBooking,
+        rentalNotification.NOTIFY_TYPES.REQUEST_CREATED,
+        req.io
+      );
+
       res.json({
         msg: "Booking request created successfully! Waiting for landlord approval.",
         booking: newBooking,
@@ -96,12 +95,6 @@ const bookingCtrl = {
   approveRequest: async (req, res) => {
     try {
       const { rentalHistoryId } = req.params;
-
-      if (req.user.role !== "Landlord") {
-        return res
-          .status(403)
-          .json({ msg: "Only landlords can approve rental requests." });
-      }
 
       const rental = await RentalTransaction.findById(rentalHistoryId);
       if (!rental) {
@@ -129,6 +122,14 @@ const bookingCtrl = {
         await estate.save();
       }
 
+      // Gửi thông báo cho người thuê
+      await rentalNotification.createRentalNotification(
+        newBooking,
+        rentalNotification.NOTIFY_TYPES.REQUEST_CREATED,
+        req.io
+      );
+      console.log("Đã xử lý xong thông báo");
+
       res.json({
         msg: "Rental request approved successfully",
         rental,
@@ -141,12 +142,6 @@ const bookingCtrl = {
   cancelBookingRequest: async (req, res) => {
     try {
       const { rentalHistoryId } = req.params;
-
-      if (req.user.role !== "Landlord") {
-        return res
-          .status(403)
-          .json({ msg: "Only landlord can cancel booking request." });
-      }
 
       const rental = await RentalTransaction.findById(rentalHistoryId);
       if (!rental) {
@@ -177,6 +172,13 @@ const bookingCtrl = {
         estate.status = "available";
         await estate.save();
       }
+
+      // Gửi thông báo cho người thuê
+      await rentalNotification.createRentalNotification(
+        rental,
+        rentalNotification.NOTIFY_TYPES.REQUEST_CANCELLED,
+        req.io
+      );
 
       res.json({
         msg: "Booking request cancelled successfully",
