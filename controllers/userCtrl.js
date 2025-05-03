@@ -370,6 +370,62 @@ const userCtrl = {
       return res.status(500).json({ msg: error.message });
     }
   },
+
+  updateUserStatus: async (req, res) => {
+    try {
+      const { status } = req.body;
+      const userId = req.params.id;
+
+      if (status !== 0 && status !== 1) {
+        return res.status(400).json({
+          title: "Trạng thái không hợp lệ",
+          message: "Trạng thái phải là 0 (khóa) hoặc 1 (kích hoạt)",
+        });
+      }
+
+      const user = await Users.findById(userId);
+      if (!user) {
+        return res.status(404).json({ msg: "Không tìm thấy người dùng" });
+      }
+
+      if (user.role === "Admin" && status === 0) {
+        const activeAdminCount = await Users.countDocuments({
+          role: "Admin",
+          status: 1,
+        });
+
+        if (activeAdminCount <= 1) {
+          return res.status(400).json({
+            title: "Hành động không được phép",
+            message: "Không thể khóa tài khoản admin cuối cùng",
+          });
+        }
+      }
+
+      const updatedUser = await Users.findByIdAndUpdate(
+        userId,
+        { status },
+        { new: true }
+      ).select("-password");
+
+      const statusText = status === 1 ? "kích hoạt" : "khóa";
+
+      await new UserActivity({
+        user: req.user._id,
+        activityType: "update",
+        description: `Tài khoản được ${statusText}: ${user.full_name} (${user.role})`,
+        ipAddress: req.ip || "",
+        userAgent: req.headers["user-agent"] || "",
+      }).save();
+
+      res.json({
+        msg: `Tài khoản đã được ${statusText} thành công`,
+        user: updatedUser,
+      });
+    } catch (error) {
+      return res.status(500).json({ msg: error.message });
+    }
+  },
 };
 
 export default userCtrl;

@@ -35,7 +35,7 @@ const authCtrl = {
       const newUser = new Users({
         full_name: newFullName,
         email,
-        status: 0,
+        status: 1,
         password: passwordHash,
         role,
       });
@@ -71,6 +71,14 @@ const authCtrl = {
 
       if (!user)
         return res.status(400).json({ msg: "This email does not exist." });
+
+      if (user.status === 0) {
+        return res
+          .status(403)
+          .json({
+            msg: "Tài khoản đã bị khóa. Vui lòng liên hệ với quản trị viên để được hỗ trợ.",
+          });
+      }
 
       const isMatch = await compare(password, user.password);
       if (!isMatch)
