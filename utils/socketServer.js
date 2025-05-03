@@ -9,7 +9,6 @@ export const SocketServer = (io) => {
   io.on("connection", (socket) => {
     console.log(`Client đã kết nối với socket ID: ${socket.id}`);
 
-    // Khi user kết nối
     socket.on("join", (userId) => {
       if (!userId) {
         console.log("User ID không hợp lệ, không thể kết nối");
@@ -29,14 +28,11 @@ export const SocketServer = (io) => {
         `Số lượng người dùng online hiện tại: ${userSocketsMap.size}`
       );
 
-      // Gửi danh sách user đang online cho tất cả clients
       io.emit("onlineUsers", Array.from(userSocketsMap.keys()));
 
-      // Gửi thông báo chưa đọc cho người dùng mới kết nối
       sendUnreadNotifications(userId, socket);
     });
 
-    // Disconnect
     socket.on("disconnect", () => {
       console.log(`Client ngắt kết nối: ${socket.id}`);
 
@@ -61,7 +57,6 @@ export const SocketServer = (io) => {
       io.emit("onlineUsers", Array.from(userSocketsMap.keys()));
     });
 
-    // Tạo thông báo mới
     socket.on("createNotify", async (msg) => {
       console.log("Nhận sự kiện createNotify:", JSON.stringify(msg));
 
@@ -70,7 +65,6 @@ export const SocketServer = (io) => {
 
         if (recipients.length === 0) return;
 
-        // Tạo thông báo mới trong database
         const notify = new Notify({
           id,
           recipients,
@@ -83,12 +77,10 @@ export const SocketServer = (io) => {
 
         await notify.save();
 
-        // Gửi thông báo đến các người dùng đang online
         for (const recipient of recipients) {
           if (userSocketsMap.has(recipient)) {
             const recipientSockets = userSocketsMap.get(recipient);
 
-            // Gửi thông báo đến tất cả các thiết bị của người nhận
             recipientSockets.forEach((socketId) => {
               io.to(socketId).emit("getNotify", notify);
             });
@@ -99,7 +91,6 @@ export const SocketServer = (io) => {
       }
     });
 
-    // Xóa thông báo
     socket.on("removeNotify", async (msg) => {
       console.log("Nhận sự kiện removeNotify:", JSON.stringify(msg));
 
@@ -116,7 +107,6 @@ export const SocketServer = (io) => {
 
         console.log(`Đã xóa thông báo: ${notify._id}`);
 
-        // Thông báo cho tất cả người nhận đang online về việc xóa thông báo
         for (const recipient of notify.recipients) {
           if (userSocketsMap.has(recipient.toString())) {
             const recipientSockets = userSocketsMap.get(recipient.toString());
@@ -131,7 +121,6 @@ export const SocketServer = (io) => {
       }
     });
 
-    // Lấy danh sách thông báo
     socket.on("getNotifies", async (userId) => {
       console.log(`Nhận yêu cầu getNotifies từ người dùng: ${userId}`);
 
@@ -148,7 +137,6 @@ export const SocketServer = (io) => {
       }
     });
 
-    // Đánh dấu đã đọc thông báo
     socket.on("isReadNotify", async (msg) => {
       console.log("Nhận sự kiện isReadNotify:", JSON.stringify(msg));
 
@@ -162,10 +150,8 @@ export const SocketServer = (io) => {
         if (updated) {
           console.log(`Thông báo ${msg.id} đã được đánh dấu là đã đọc`);
 
-          // Thông báo cập nhật trạng thái cho người dùng
           const userId = userMap.get(socket.id);
           if (userId) {
-            // Gửi lại cho tất cả các thiết bị của người dùng hiện tại
             if (userSocketsMap.has(userId)) {
               const userSockets = userSocketsMap.get(userId);
               userSockets.forEach((socketId) => {
@@ -179,7 +165,6 @@ export const SocketServer = (io) => {
       }
     });
 
-    // Xóa tất cả thông báo
     socket.on("deleteAllNotifies", async (userId) => {
       console.log(`Nhận yêu cầu deleteAllNotifies từ người dùng: ${userId}`);
 
@@ -188,7 +173,6 @@ export const SocketServer = (io) => {
 
         await Notify.deleteMany({ recipients: userId });
 
-        // Thông báo đã xóa tất cả thông báo cho người dùng
         if (userSocketsMap.has(userId)) {
           const userSockets = userSocketsMap.get(userId);
           userSockets.forEach((socketId) => {
@@ -202,7 +186,6 @@ export const SocketServer = (io) => {
   });
 };
 
-// Hàm gửi thông báo chưa đọc cho người dùng mới kết nối
 const sendUnreadNotifications = async (userId, socket) => {
   try {
     const notifies = await Notify.find({

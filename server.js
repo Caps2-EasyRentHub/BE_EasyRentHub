@@ -33,10 +33,7 @@ const io = new Server(server, {
   },
 });
 
-// Initialize Socket Server
 SocketServer(io);
-
-// Add Socket.io to all routes
 app.use(socketMiddleware(io));
 
 // Create peer server

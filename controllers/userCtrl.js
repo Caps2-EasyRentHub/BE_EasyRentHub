@@ -1,4 +1,5 @@
 import Users from "../models/userModel.js";
+import UserActivity from "../models/userActivityModel.js";
 import bcrypt from "bcrypt";
 import Estates from "../models/estateModel.js";
 
@@ -23,8 +24,35 @@ const userCtrl = {
         });
       }
 
-      const users = await Users.find().select("-password");
-      res.json({ users });
+      const { search, role, status } = req.query;
+
+      let query = {};
+
+      if (search) {
+        query.$or = [
+          { full_name: { $regex: search, $options: "i" } },
+          { email: { $regex: search, $options: "i" } },
+        ];
+      }
+
+      if (role && ["Tenant", "Landlord", "Admin"].includes(role)) {
+        query.role = role;
+      }
+
+      if (status !== undefined) {
+        query.status = parseInt(status);
+      }
+
+      const total = await Users.countDocuments(query);
+
+      const users = await Users.find(query)
+        .select("-password")
+        .sort({ createdAt: -1 });
+
+      res.json({
+        users,
+        total,
+      });
     } catch (err) {
       return res.status(500).json({ msg: err.message });
     }
@@ -105,6 +133,16 @@ const userCtrl = {
       // Save the new user
       await newUser.save();
 
+      await new UserActivity({
+        user: req.user._id,
+        activityType: "create",
+        description: `Người dùng mới được tạo: ${full_name} (${
+          role || "Tenant"
+        })`,
+        ipAddress: req.ip || "",
+        userAgent: req.headers["user-agent"] || "",
+      }).save();
+
       // Return success without sending back the password
       res.status(201).json({
         msg: "User created successfully",
@@ -170,6 +208,14 @@ const userCtrl = {
         { new: true }
       ).select("-password");
 
+      await new UserActivity({
+        user: req.user._id,
+        activityType: "update",
+        description: `Đã cập nhập lại người dùng: ${full_name})`,
+        ipAddress: req.ip || "",
+        userAgent: req.headers["user-agent"] || "",
+      }).save();
+
       res.json({
         msg: "User information updated successfully",
         user: updatedUser,
@@ -212,11 +258,116 @@ const userCtrl = {
 
       await Users.findByIdAndDelete(req.params.id);
 
+      await new UserActivity({
+        user: req.user._id,
+        activityType: "delete",
+        description: `Đã xóa người dùng: ${user.full_name} (${user.role})`,
+        ipAddress: req.ip || "",
+        userAgent: req.headers["user-agent"] || "",
+      }).save();
+
       res.json({
         msg: "User deleted successfully",
       });
     } catch (err) {
       return res.status(500).json({ msg: err.message });
+    }
+  },
+
+  getUserStats: async (req, res) => {
+    try {
+      if (req.user.role !== "Admin") {
+        return res.status(401).json({
+          title: "Không đủ quyền truy cập",
+          message:
+            "Chỉ người dùng Admin mới có thể truy cập số liệu thống kê người dùng",
+        });
+      }
+
+      const tenantCount = await Users.countDocuments({ role: "Tenant" });
+      const landlordCount = await Users.countDocuments({ role: "Landlord" });
+      const adminCount = await Users.countDocuments({ role: "Admin" });
+      const totalUsers = tenantCount + landlordCount + adminCount;
+
+      const activeUsers = await Users.countDocuments({ status: 1 });
+      const inactiveUsers = await Users.countDocuments({ status: 0 });
+
+      const sixMonthsAgo = new Date();
+      sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+
+      const monthlyRegistrations = await Users.aggregate([
+        { $match: { createdAt: { $gte: sixMonthsAgo } } },
+        {
+          $group: {
+            _id: {
+              month: { $month: "$createdAt" },
+              year: { $year: "$createdAt" },
+            },
+            count: { $sum: 1 },
+          },
+        },
+        { $sort: { "_id.year": 1, "_id.month": 1 } },
+      ]);
+
+      res.json({
+        totalUsers,
+        byRole: {
+          tenant: tenantCount,
+          landlord: landlordCount,
+          admin: adminCount,
+        },
+        byStatus: {
+          active: activeUsers,
+          inactive: inactiveUsers,
+        },
+        trends: monthlyRegistrations,
+      });
+    } catch (error) {
+      return res.status(500).json({ msg: error.message });
+    }
+  },
+
+  getUserActivity: async (req, res) => {
+    try {
+      if (req.user.role !== "Admin") {
+        return res.status(401).json({
+          title: "Không đủ quyền truy cập",
+          message:
+            "Chỉ người dùng Admin mới có thể truy cập số liệu thống kê người dùng",
+        });
+      }
+
+      const { userId, type, startDate, endDate } = req.query;
+
+      let query = {};
+
+      if (userId) {
+        query.user = userId;
+      }
+
+      if (
+        type &&
+        ["login", "logout", "create", "update", "delete"].includes(type)
+      ) {
+        query.activityType = type;
+      }
+
+      if (startDate || endDate) {
+        query.createdAt = {};
+        if (startDate) query.createdAt.$gte = new Date(startDate);
+        if (endDate) query.createdAt.$lte = new Date(endDate);
+      }
+
+      const total = await UserActivity.countDocuments(query);
+
+      const activities = await UserActivity.find(query).populate(
+        "user",
+        "full_name email role avatar"
+      );
+
+      res.json({ activities, total });
+    } catch (error) {
+      return res.status(500).json({ msg: error.message });
     }
   },
 };
