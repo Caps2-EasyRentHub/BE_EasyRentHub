@@ -7,9 +7,15 @@ const estateRouter = express.Router();
 estateRouter.get("/my-estates", auth, landlordEstateCtrl.getMyEstates);
 
 estateRouter.get(
-  "/track-monthly-revenue",
+  "/track-revenue",
   auth,
   landlordEstateCtrl.trackMonthlyRevenue
+);
+
+estateRouter.get(
+  "/revenue-details",
+  auth,
+  landlordEstateCtrl.getRevenueDetailsByTimeRange
 );
 
 export default estateRouter;
