@@ -76,9 +76,6 @@ const maintenanceRequestCtrl = {
 
   getAllRequests: async (req, res) => {
     try {
-      if (req.user._id !== "Admin")
-        return res.status(403).json({ msg: "Access denied" });
-
       const requests = await MaintenanceRequest.find({})
         .populate("estate", "name images")
         .populate("tenant", "username avatar")
@@ -213,10 +210,6 @@ const maintenanceRequestCtrl = {
     try {
       const { id } = req.params;
       const { adminApproval, adminNotes, status } = req.body;
-
-      if (req.user.role !== "admin") {
-        return res.status(403).json({ msg: "Access denied" });
-      }
 
       const request = await MaintenanceRequest.findById(id);
       if (!request) {
