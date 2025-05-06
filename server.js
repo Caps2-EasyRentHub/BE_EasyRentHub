@@ -17,6 +17,7 @@ import reviewRouter from "./routers/reviewRouter.js";
 import notifyRouter from "./routers/notifyRouter.js";
 import { SocketServer } from "./utils/socketServer.js";
 import socketMiddleware from "./middleware/socketMiddleware.js";
+import maintenanceRequestRouter from "./routers/maintenanceRequestRouter.js";
 
 const app = express();
 dotenv.config();
@@ -47,6 +48,7 @@ app.use("/api", reviewRouter);
 app.use("/api", notifyRouter);
 app.use("/api", rentalHistoryRouter);
 app.use("/api", bookingRouter);
+app.use("/api", maintenanceRequestRouter);
 app.use("/api/landlord", landlordEstateRouter);
 app.use("/api/favorite", favoriteRouter);
 
