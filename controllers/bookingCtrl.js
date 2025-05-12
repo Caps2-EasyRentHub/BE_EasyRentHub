@@ -73,7 +73,6 @@ const bookingCtrl = {
       await newBooking.save();
 
       estate.status = "pending";
-      estate.user = req.user._id;
       await estate.save();
 
       // Gửi thông báo cho chủ nhà
@@ -124,7 +123,7 @@ const bookingCtrl = {
 
       // Gửi thông báo cho người thuê
       await rentalNotification.createRentalNotification(
-        newBooking,
+        rental,
         rentalNotification.NOTIFY_TYPES.REQUEST_CREATED,
         req.io
       );

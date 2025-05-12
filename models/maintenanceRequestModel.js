@@ -54,13 +54,7 @@ const maintenanceRequestSchema = new Schema(
       default: undefined,
     },
     tenantFeedback: { type: String, default: "" },
-    adminNotes: { type: String, default: "" },
     completionDate: { type: Date },
-    adminApproval: {
-      type: String,
-      enum: ["pending", "approved", "rejected", ""],
-      default: "",
-    },
   },
   {
     timestamps: true,

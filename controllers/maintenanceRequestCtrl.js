@@ -1,6 +1,7 @@
 import Estate from "../models/estateModel.js";
 import User from "../models/userModel.js";
 import MaintenanceRequest from "../models/maintenanceRequestModel.js";
+import Notify from "../models/notifyModel.js";
 
 const maintenanceRequestCtrl = {
   // request for tenant
@@ -14,16 +15,36 @@ const maintenanceRequestCtrl = {
 
       const landlordId = estate.user;
 
+      console.log(images);
+      const imageArray = Array.isArray(images)
+        ? images
+        : images
+        ? [images]
+        : [];
+      console.log("landlordId:", landlordId);
+      console.log("images:", imageArray);
+
       const newRequest = new MaintenanceRequest({
         estate: estateId,
         tenant: tenantId,
         landlord: landlordId,
         description,
         priority,
-        images: images || [],
+        images: imageArray,
       });
 
       await newRequest.save();
+
+      const newNotify = new Notify({
+        user: tenantId,
+        recipients: [landlordId],
+        url: `/maintenance/${newRequest._id}`,
+        text: "Yêu cầu bảo trì mới",
+        content: `Yêu cầu bảo trì mới cho ${estate.name}`,
+        image: images.length > 0 ? images[0] : "",
+        isRead: false,
+      });
+      await newNotify.save();
 
       const io = req.io;
       const notification = {
@@ -54,6 +75,21 @@ const maintenanceRequestCtrl = {
         .populate("landlord", "username avatar")
         .sort("-createdAt");
 
+      if (req.io) {
+        req.io.to(`user_${tenantId}`).emit("markMaintenanceNotificationsRead", {
+          userId: tenantId,
+        });
+
+        await Notify.updateMany(
+          {
+            recipients: tenantId,
+            content: { $regex: "maintenance|bảo trì|sửa chữa", $options: "i" },
+            isRead: false,
+          },
+          { isRead: true }
+        );
+      }
+
       return res.status(200).json({ requests });
     } catch (error) {
       return res.status(500).json({ msg: error.message });
@@ -67,6 +103,23 @@ const maintenanceRequestCtrl = {
         .populate("estate", "name images")
         .populate("tenant", "username avatar")
         .sort("-createdAt");
+
+      if (req.io) {
+        req.io
+          .to(`user_${landlordId}`)
+          .emit("markMaintenanceNotificationsRead", {
+            userId: landlordId,
+          });
+
+        await Notify.updateMany(
+          {
+            recipients: landlordId,
+            content: { $regex: "maintenance|bảo trì|sửa chữa", $options: "i" },
+            isRead: false,
+          },
+          { isRead: true }
+        );
+      }
 
       return res.status(200).json({ requests });
     } catch (error) {
@@ -140,6 +193,13 @@ const maintenanceRequestCtrl = {
           msg: `Cannot update request that is a already ${request.status}`,
         });
 
+      const estate = await Estate.findById(request.estate);
+      const estateName = estate ? estate.name : "property";
+      const estateImage =
+        estate && estate.images && estate.images.length > 0
+          ? estate.images[0]
+          : "";
+
       if (status === "approved") {
         if (!maintenanceType || !estimatedCost) {
           return res.status(400).json({
@@ -167,6 +227,33 @@ const maintenanceRequestCtrl = {
       }
 
       await request.save();
+
+      const tenantNotify = new Notify({
+        user: landlordId,
+        recipients: [request.tenant],
+        url: `/maintenance/${request._id}`,
+        text: `Yêu cầu bảo trì ${status === "approved" ? "đã chấp nhận" : ""}`,
+        content: `Yêu cầu bảo trì của bạn cho ${estateName} đã được ${
+          status === "approved" ? "đã chấp nhận" : ""
+        }`,
+        image: estateImage,
+        isRead: false,
+      });
+      await tenantNotify.save();
+
+      if (status === "pending" && estimatedCost > 5000000) {
+        const adminUsers = await User.find({ role: "admin" }).select("_id");
+        const adminNotify = new Notify({
+          user: landlordId,
+          recipients: adminUsers.map((admin) => admin._id),
+          url: `/maintenance/${request._id}`,
+          text: `High-cost maintenance approval needed`,
+          content: `A high-cost maintenance request (${estimatedCost.toLocaleString()} VND) needs approval`,
+          image: estateImage,
+          isRead: false,
+        });
+        await adminNotify.save();
+      }
 
       // Notify
       const io = req.io;
@@ -229,6 +316,30 @@ const maintenanceRequestCtrl = {
       }
 
       await request.save();
+
+      const landlordNotify = new Notify({
+        user: adminId,
+        recipients: [request.landlord],
+        url: `/maintenance/${request._id}`,
+        text: `Cập nhật của quản trị viên về yêu cầu bảo trì`,
+        content: `Quản trị viên có ${
+          adminApproval || status || "updated"
+        } yêu cầu bảo trì của bạn cho ${estateName}`,
+        isRead: false,
+      });
+      await landlordNotify.save();
+
+      const tenantNotify = new Notify({
+        user: adminId,
+        recipients: [request.tenant],
+        url: `/maintenance/${request._id}`,
+        text: `Cập nhật của quản trị viên về yêu cầu bảo trì`,
+        content: `Quản trị viên có ${
+          adminApproval || status || "updated"
+        } yêu cầu bảo trì của bạn cho ${estateName}`,
+        isRead: false,
+      });
+      await tenantNotify.save();
 
       const io = req.io;
 
@@ -313,6 +424,45 @@ const maintenanceRequestCtrl = {
 
       await request.save();
 
+      const estate = await Estate.findById(request.estate);
+      const estateName = estate ? estate.name : "property";
+      const estateImage =
+        estate && estate.images && estate.images.length > 0
+          ? estate.images[0]
+          : "";
+
+      const newNotify = new Notify({
+        user: landlordId,
+        recipients: [request.tenant],
+        url: `/maintenance/${request._id}`,
+        text: `Yêu cầu bảo trì ${
+          status === "in_progress" ? "đang tiến hành xử lí" : ""
+        }`,
+        content: `Yêu cầu bảo trì của bạn cho ${estateName} hiện là ${
+          status === "in_progress" ? "đang tiến hành xử lí" : ""
+        }`,
+        image: estateImage,
+        isRead: false,
+      });
+      await newNotify.save();
+
+      if (
+        status === "completed" &&
+        Math.abs(request.estimatedCost - actualCost) > 1000000
+      ) {
+        const adminUsers = await User.find({ role: "admin" }).select("_id");
+        const adminNotify = new Notify({
+          user: landlordId,
+          recipients: [request.tenant],
+          url: `/maintenance/${request._id}`,
+          text: `Chi phí trong bảo trì khi đã hoàn thành.`,
+          content: `Bảo trì hoàn thành với chi phí: Ước tính ${request.estimatedCost.toLocaleString()} so với Thực tế ${actualCost.toLocaleString()} VND`,
+          image: estateImage,
+          isRead: false,
+        });
+        await adminNotify.save();
+      }
+
       // Notify
       const io = req.io;
       const tenantNotification = {
@@ -320,6 +470,7 @@ const maintenanceRequestCtrl = {
         type: "maintenance_progress",
         content: `Your maintenance request is now ${status}`,
         data: { requestId: request._id },
+        image: estateImage,
         read: false,
         createdAt: new Date(),
       };
@@ -363,6 +514,41 @@ const maintenanceRequestCtrl = {
       request.rating = rating;
       request.tenantFeedback = tenantFeedback || "";
       await request.save();
+
+      const estate = await Estate.findById(request.estate);
+      const estateName = estate ? estate.name : "property";
+      const estateImage =
+        estate && estate.images && estate.images.length > 0
+          ? estate.images[0]
+          : "";
+
+      const newNotify = new Notify({
+        user: tenantId,
+        recipients: [request.landlord],
+        url: `/maintenance/${request._id}`,
+        text: `Phản hồi nhận được về bảo trì`,
+        content: `${estateName} đã gửi phản hồi ${rating} sao về việc bảo trì`,
+        image: estateImage,
+        isRead: false,
+      });
+      await newNotify.save();
+
+      const io = req.io;
+      if (io) {
+        const landlordNotification = {
+          recipient: request.landlord,
+          type: "maintenance_feedback",
+          content: `Người thuê nhà đã gửi phản hồi ${rating}-star về công việc bảo trì của bạn`,
+          data: { requestId: request._id },
+          image: estateImage,
+          read: false,
+          createdAt: new Date(),
+        };
+        io.to(`user_${request.landlord}`).emit(
+          "newNotification",
+          landlordNotification
+        );
+      }
 
       return res.status(200).json({
         msg: "Feedback submitted successfully",
