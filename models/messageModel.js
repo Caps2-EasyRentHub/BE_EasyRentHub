@@ -1,15 +1,35 @@
-import mongoose from 'mongoose'
-const { Schema, Types, model } = mongoose
+import mongoose from "mongoose";
 
-const messageSchema = new Schema({
-    conversation: { type: Types.ObjectId, ref: 'conversation' },
-    sender: { type: Types.ObjectId, ref: 'user' },
-    recipient: { type: Types.ObjectId, ref: 'user' },
-    text: String,
-    media: Array,
-    call: Object
-}, {
-    timestamps: true
-})
+const messageSchema = new mongoose.Schema({
+  conversationId: {
+    type: String,
+    required: true,
+  },
+  senderId: {
+    type: String,
+    required: true,
+  },
+  receiverId: {
+    type: String,
+    required: true,
+  },
+  text: {
+    type: String,
+  },
+  mediaUrl: {
+    type: String,
+  },
+  mediaType: {
+    type: String,
+  },
+  timestamp: {
+    type: Date,
+    default: Date.now,
+  },
+  read: {
+    type: Boolean,
+    default: false,
+  },
+});
 
-export default model('message', messageSchema)
+export default mongoose.model("message", messageSchema);

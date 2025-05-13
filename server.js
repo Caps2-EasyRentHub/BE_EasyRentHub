@@ -18,8 +18,16 @@ import notifyRouter from "./routers/notifyRouter.js";
 import { SocketServer } from "./utils/socketServer.js";
 import socketMiddleware from "./middleware/socketMiddleware.js";
 import maintenanceRequestRouter from "./routers/maintenanceRequestRouter.js";
+import messageRouter from "./routers/messageRouter.js";
+import uploadRouter from "./routers/uploadRouter.js";
+import { chatSocketHandler } from "./utils/chatSocket.js";
+import multer from "multer";
+import path from "path";
+import { fileURLToPath } from "url";
 
 const app = express();
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 dotenv.config();
 app.use(json());
 app.use(cors());
@@ -36,6 +44,7 @@ const io = new Server(server, {
 
 SocketServer(io);
 app.use(socketMiddleware(io));
+chatSocketHandler(io);
 
 // Create peer server
 ExpressPeerServer(http, { path: "/" });
@@ -51,6 +60,9 @@ app.use("/api", bookingRouter);
 app.use("/api", maintenanceRequestRouter);
 app.use("/api/landlord", landlordEstateRouter);
 app.use("/api/favorite", favoriteRouter);
+app.use("/api/upload", uploadRouter);
+app.use('/uploads', express.static('uploads'));
+app.use("/api/messages", messageRouter);
 
 const connectDB = async () => {
   try {
