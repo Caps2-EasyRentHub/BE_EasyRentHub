@@ -184,24 +184,24 @@ const estateCtrl = {
       let totalDistance = 0;
       const arr = [];
       const estates = await Estate.find();
-      const user = await Users.findById(req.params.id);
-      const estate = await Estate.findById(req.params.id);
-      let addressUser = "";
-      if (user === null) {
-        addressUser = estate.address;
-      } else {
-        addressUser = user.address;
+
+      const { lat, lng } = req.query;
+
+      if (!lat || !lng) {
+        return res.status(400).json({
+          msg: "Please provide latitude (lat) and longitude (lng) in query parameters",
+        });
       }
 
+      const inputLocation = {
+        lat,
+        lng,
+      };
+
       for (let item of estates) {
-        if (
-          addressUser.lng &&
-          addressUser.lat &&
-          item.address.lng &&
-          item.address.lat
-        ) {
+        if (item.address.lng && item.address.lat) {
           await fetch(
-            `https://router.project-osrm.org/route/v1/driving/${addressUser.lng},${addressUser.lat};${item.address.lng},${item.address.lat}?overview=full&geometries=geojson`
+            `https://router.project-osrm.org/route/v1/driving/${inputLocation.lng},${inputLocation.lat};${item.address.lng},${item.address.lat}?overview=full&geometries=geojson`
           )
             .then((res) => {
               return res.json();
@@ -221,7 +221,7 @@ const estateCtrl = {
                 }
 
                 item.distance = totalDistance.toFixed(2);
-                if (totalDistance < 100000) {
+                if (totalDistance < 30) {
                   arr.push(item);
                 }
               }
@@ -237,6 +237,7 @@ const estateCtrl = {
       res.json({
         msg: "Success!",
         result: arr.length,
+        inputLocation,
         estates: arr,
       });
     } catch (err) {
@@ -262,6 +263,22 @@ const estateCtrl = {
 
       if (!like)
         return res.status(400).json({ msg: "This post does not exist." });
+
+      if (like.status === "available") {
+        const notificationEstate = {
+          ...like.toObject(),
+          likes: [req.user._id],
+        };
+
+        const rentalNotification = await import(
+          "../utils/rentalNotificationHelper.js"
+        );
+
+        await rentalNotification.default.createEstateAvailabilityNotification(
+          notificationEstate,
+          req.io
+        );
+      }
 
       res.json({ msg: "Liked Estate!" });
     } catch (err) {

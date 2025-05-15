@@ -122,7 +122,7 @@ const recommendationCtrl = {
   getPriceSuggestions: async (req, res) => {
     try {
       console.log("[API] Getting price suggestions");
-      const result = await getSuggestedPriceRanges();
+      const result = await getEstateRecommendedPrice();
       res.json(result);
     } catch (err) {
       console.error("Error in getPriceSuggestions:", {

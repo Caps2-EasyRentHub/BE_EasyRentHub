@@ -4,6 +4,23 @@ import Favorite from "../../models/favoriteModel.js";
 import RentalTransaction from "../../models/rentalTransactionModel.js";
 
 const extractEstateFeatures = (estate) => {
+  if (!estate || !estate.property || !estate.address) {
+    console.log(`[EXTRACT] Warning: Estate is missing required properties`);
+    return {
+      price: estate?.price || 0,
+      bedrooms: 0,
+      bathrooms: 0,
+      floors: 0,
+      location: {
+        city: estate?.address?.city || "",
+        country: estate?.address?.country || "",
+        lat: parseFloat(estate?.address?.lat || 0),
+        lng: parseFloat(estate?.address?.lng || 0),
+      },
+      rating: estate?.rating_star || 0,
+    };
+  }
+
   const features = {
     price: estate.price || 0,
     bedrooms: estate.property.bedroom || 0,

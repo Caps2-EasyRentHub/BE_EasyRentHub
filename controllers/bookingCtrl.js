@@ -168,14 +168,43 @@ const bookingCtrl = {
 
       const estate = await Estate.findById(rental.estate);
       if (estate) {
+        const previousStatus = estate.status;
         estate.status = "available";
         await estate.save();
+
+        if (
+          (previousStatus === "booked" || previousStatus === "pending") &&
+          estate.likes &&
+          estate.likes.length > 0
+        ) {
+          // Get the fully populated estate for notification
+          const populatedEstate = await Estate.findById(estate._id)
+            .populate("user", "avatar full_name")
+            .populate("likes", "avatar full_name email");
+
+          // Import the notification helper
+          const rentalNotificationHelper = await import(
+            "../utils/rentalNotificationHelper.js"
+          );
+
+          // Send notifications to all users who liked this estate
+          await rentalNotificationHelper.default.createEstateAvailabilityNotification(
+            populatedEstate,
+            req.io
+          );
+
+          console.log(
+            `Sent availability notifications to ${populatedEstate.likes.length} users who liked estate ${estate.name}`
+          );
+        }
       }
 
-      // Gửi thông báo cho người thuê
-      await rentalNotification.createRentalNotification(
+      const rentalNotification = await import(
+        "../utils/rentalNotificationHelper.js"
+      );
+      await rentalNotification.default.createRentalNotification(
         rental,
-        rentalNotification.NOTIFY_TYPES.REQUEST_CANCELLED,
+        rentalNotification.default.NOTIFY_TYPES.REQUEST_CANCELLED,
         req.io
       );
 
@@ -271,6 +300,78 @@ const bookingCtrl = {
         msg: "All bookings retrieved successfully!",
         result: rentalBookings.length,
         bookings: rentalBookings,
+      });
+    } catch (err) {
+      return res.status(500).json({ msg: err.message });
+    }
+  },
+
+  completeBooking: async (req, res) => {
+    try {
+      const { rentalHistoryId } = req.params;
+
+      const rental = await RentalTransaction.findById(rentalHistoryId);
+      if (!rental) {
+        return res.status(404).json({ msg: "Rental not found." });
+      }
+
+      const isLandlord = rental.landlord.toString() === req.user._id.toString();
+      const isTenant = rental.tenant.toString() === req.user._id.toString();
+
+      if (rental.landlord.toString() !== req.user._id.toString()) {
+        return res.status(403).json({
+          msg: "You are not authorized to complete this rental.",
+        });
+      }
+
+      if (rental.status !== "approved") {
+        return res.status(400).json({
+          msg: `Cannot complete a rental that is ${rental.status}.`,
+        });
+      }
+
+      // Update the rental status
+      rental.status = "completed";
+      await rental.save();
+
+      // Update the estate status to available
+      const estate = await Estate.findById(rental.estate);
+      if (estate) {
+        // Check previous status to see if it's changing from booked to available
+        const previousStatus = estate.status;
+        estate.status = "available";
+        await estate.save();
+
+        // If status was booked and has likes, send notification
+        if (
+          previousStatus === "booked" &&
+          estate.likes &&
+          estate.likes.length > 0
+        ) {
+          // Get fully populated estate with user data for notification
+          const populatedEstate = await Estate.findById(estate._id)
+            .populate("user", "avatar full_name")
+            .populate("likes", "avatar full_name email");
+
+          const rentalNotificationHelper = await import(
+            "../utils/rentalNotificationHelper.js"
+          );
+
+          // Send notifications to all users who liked this estate
+          await rentalNotificationHelper.default.createEstateAvailabilityNotification(
+            populatedEstate,
+            req.io
+          );
+
+          console.log(
+            `Sent notifications to ${populatedEstate.likes.length} users who liked estate ${estate.name}`
+          );
+        }
+      }
+
+      res.json({
+        msg: "Rental completed successfully, property is now available",
+        rental,
       });
     } catch (err) {
       return res.status(500).json({ msg: err.message });

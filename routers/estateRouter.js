@@ -16,7 +16,7 @@ estateRouter
   .get(auth, estateCtrl.getEstate)
   .delete(auth, estateCtrl.deleteEstate);
 
-estateRouter.get("/getRecommend/:id", auth, estateCtrl.getRecommend);
+estateRouter.get("/recommend", auth, estateCtrl.getRecommend);
 
 estateRouter.patch("/estate/:id/like", auth, estateCtrl.likeEstate);
 
@@ -32,7 +32,7 @@ estateRouter.get(
   recommendationCtrl.getContentBasedRecommendations
 );
 
-estateRouter.post(
+estateRouter.get(
   "/recommendations/price",
   auth,
   recommendationCtrl.getPriceRecommendation

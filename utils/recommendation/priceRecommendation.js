@@ -122,6 +122,16 @@ const getEstateRecommendedPrice = async (estateData, k = 2) => {
   try {
     console.log(`[PRICE RECOMMEND] Starting price recommendation process`);
 
+    // Check if estateData is valid
+    if (!estateData) {
+      return {
+        success: false,
+        message: "Invalid estate data provided",
+        recommendedPrice: null,
+        similarEstates: [],
+      };
+    }
+
     // Create a temp estate object with the provided data
     const targetEstate = {
       property: {
@@ -132,8 +142,8 @@ const getEstateRecommendedPrice = async (estateData, k = 2) => {
       address: {
         city: estateData.city || "",
         country: estateData.country || "",
-        lat: parseFloat(estateData.lat) || 0,
-        lng: parseFloat(estateData.lng) || 0,
+        lat: parseFloat(estateData.lat || 0),
+        lng: parseFloat(estateData.lng || 0),
       },
       rating_star: 0,
     };
