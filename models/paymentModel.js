@@ -1,18 +1,28 @@
-import mongoose from 'mongoose'
-const { Schema, Types, model } = mongoose
+import mongoose from "mongoose";
+const { Schema, Types, model } = mongoose;
 
 const paymentSchema = new Schema({
+  userId: { type: Types.ObjectId, ref: "user", required: true },
+  amount: { type: Number, required: true },
+  planType: {
     type: String,
-    checkIn: String,
-    checkOut: String,
-    discount: Number,
-    paymentMethod: String,
-    price: Number,
-    note: String,
-    status: String,
-    user: { type: Types.ObjectId, ref: 'user' },
-    estate: { type: Types.ObjectId, ref: 'user' },
-    estateId: Types.ObjectId,
-    estateUserId: Types.ObjectId
+    enum: ["FREE", "WEEKLY"],
+    required: true,
+  },
+  paymentMethod: {
+    type: String,
+    enum: ["PAYOS"],
+    required: true,
+  },
+  status: {
+    type: String,
+    enum: ["PENDING", "COMPLETED", "FAILED"],
+    default: "PENDING",
+  },
+  transactionId: { type: String },
+  orderInfo: { type: String },
+  paymentResponse: { type: Object },
+  createdAt: { type: Date, default: Date.now },
 });
-export default model('payment', paymentSchema)
+
+export default model("payment", paymentSchema);

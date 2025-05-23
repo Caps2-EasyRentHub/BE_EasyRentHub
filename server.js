@@ -24,6 +24,7 @@ import { chatSocketHandler } from "./utils/chatSocket.js";
 import multer from "multer";
 import path from "path";
 import { fileURLToPath } from "url";
+import paymentRouter from "./routers/paymentRouter.js";
 
 const app = express();
 const __filename = fileURLToPath(import.meta.url);
@@ -63,6 +64,7 @@ app.use("/api/favorite", favoriteRouter);
 app.use("/api/upload", uploadRouter);
 app.use('/uploads', express.static('uploads'));
 app.use("/api/messages", messageRouter);
+app.use("/api/payment", paymentRouter);
 
 const connectDB = async () => {
   try {
@@ -74,11 +76,10 @@ const connectDB = async () => {
   }
 };
 
-const IP_ADDRESS = "192.168.1.90";
 const PORT = process.env.PORT || 5000;
 
-server.listen(PORT, IP_ADDRESS, () => {
-  console.log(`Server running at http://${IP_ADDRESS}:${PORT}`);
+server.listen(PORT, process.env.IP_ADDRESS, () => {
+  console.log(`Server running at http://${process.env.IP_ADDRESS}:${PORT}`);
 });
 
 connectDB();
