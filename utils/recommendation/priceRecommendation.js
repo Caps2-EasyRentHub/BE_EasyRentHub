@@ -1,421 +1,368 @@
 import Estate from "../../models/estateModel.js";
-import Review from "../../models/reviewModel.js";
-import RentalTransaction from "../../models/rentalTransactionModel.js";
-import { extractEstateFeatures } from "./contentBasedFiltering.js";
 
 /**
- * Calculate similarity between a target estate and another estate based on features
- * using Cosine Similarity for vector comparison
- * @param {Object} targetEstate - The estate to compare against
- * @param {Object} compareEstate - The estate to compare with
- * @returns {Number} - Similarity score between 0 and 1
- */
-const calculateEstateFeatureSimilarity = (targetEstate, compareEstate) => {
-  if (!targetEstate || !compareEstate) return 0;
-
-  const targetFeatures = extractEstateFeatures(targetEstate);
-  const compareFeatures = extractEstateFeatures(compareEstate);
-
-  if (!targetFeatures || !compareFeatures) return 0;
-
-  // Feature weights
-  const priceWeight = 0.2;
-  const bedroomWeight = 0.25;
-  const bathroomWeight = 0.15;
-  const floorWeight = 0.1;
-  const locationWeight = 0.3;
-
-  // Calculate bedroom similarity (exact match is better)
-  const bedroomDiff = Math.abs(
-    targetFeatures.bedrooms - compareFeatures.bedrooms
-  );
-  const bedroomSimilarity = Math.max(0, 1 - bedroomDiff / 3);
-
-  // Calculate bathroom similarity
-  const bathroomDiff = Math.abs(
-    targetFeatures.bathrooms - compareFeatures.bathrooms
-  );
-  const bathroomSimilarity = Math.max(0, 1 - bathroomDiff / 2);
-
-  // Calculate floor similarity
-  const floorDiff = Math.abs(targetFeatures.floors - compareFeatures.floors);
-  const floorSimilarity = Math.max(0, 1 - floorDiff / 3);
-
-  // Calculate location similarity using coordinates (Haversine distance)
-  let locationSimilarity = 0;
-  if (
-    targetFeatures.location.lat &&
-    targetFeatures.location.lng &&
-    compareFeatures.location.lat &&
-    compareFeatures.location.lng
-  ) {
-    // Calculate distance in km
-    const distance = calculateDistance(
-      targetFeatures.location.lat,
-      targetFeatures.location.lng,
-      compareFeatures.location.lat,
-      compareFeatures.location.lng
-    );
-    // Normalize distance - closer is better (using 10km as max relevant distance)
-    locationSimilarity = Math.max(0, 1 - distance / 10);
-  } else if (targetFeatures.location.city && compareFeatures.location.city) {
-    // If coordinates not available, check city match
-    locationSimilarity =
-      targetFeatures.location.city === compareFeatures.location.city ? 1 : 0;
-  }
-
-  // Calculate weighted similarity score
-  const similarityScore =
-    bedroomWeight * bedroomSimilarity +
-    bathroomWeight * bathroomSimilarity +
-    floorWeight * floorSimilarity +
-    locationWeight * locationSimilarity;
-
-  console.log(
-    `[SIMILARITY] Comparing estates - Score: ${similarityScore.toFixed(
-      4
-    )} - Details:`,
-    {
-      bedroomSim: bedroomSimilarity.toFixed(4),
-      bathroomSim: bathroomSimilarity.toFixed(4),
-      floorSim: floorSimilarity.toFixed(4),
-      locationSim: locationSimilarity.toFixed(4),
-    }
-  );
-
-  return similarityScore;
-};
-
-/**
- * Calculate distance between two points using Haversine formula
+ * Calculates the Haversine distance between two geographic coordinate points
  * @param {Number} lat1 - Latitude of first point
  * @param {Number} lng1 - Longitude of first point
  * @param {Number} lat2 - Latitude of second point
  * @param {Number} lng2 - Longitude of second point
- * @returns {Number} - Distance in kilometers
+ * @returns {Number} Distance in kilometers
  */
-const calculateDistance = (lat1, lng1, lat2, lng2) => {
-  const R = 6371; // Radius of the earth in km
-  const dLat = deg2rad(lat2 - lat1);
-  const dLng = deg2rad(lng2 - lng1);
+const calculateHaversineDistance = (lat1, lng1, lat2, lng2) => {
+  // Convert latitude and longitude from degrees to radians
+  const toRad = (value) => (value * Math.PI) / 180;
+
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+
   const a =
     Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(deg2rad(lat1)) *
-      Math.cos(deg2rad(lat2)) *
+    Math.cos(toRad(lat1)) *
+      Math.cos(toRad(lat2)) *
       Math.sin(dLng / 2) *
       Math.sin(dLng / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return R * c; // Distance in km
-};
 
-const deg2rad = (deg) => {
-  return deg * (Math.PI / 180);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  const earthRadius = 6371; // Radius of Earth in km
+  return earthRadius * c;
 };
 
 /**
- * Get price recommendation for a new estate based on similar properties
- * @param {Object} estateData - The estate data to recommend price for
- * @param {Number} k - Number of similar estates to consider (default: 5)
- * @returns {Object} - Recommended price range and similar estates
+ * Find estates within the user's area or nearby areas
+ * @param {Object} userLocation - Object containing lat, lng and city of the user
+ * @param {Number} maxDistance - Maximum distance in km to search for nearby estates
+ * @returns {Array} Array of estates in the area with their distances
  */
-const getEstateRecommendedPrice = async (estateData, k = 2) => {
+const findEstatesByLocation = async (userLocation, maxDistance = 20) => {
   try {
-    console.log(`[PRICE RECOMMEND] Starting price recommendation process`);
-
-    // Check if estateData is valid
-    if (!estateData) {
-      return {
-        success: false,
-        message: "Invalid estate data provided",
-        recommendedPrice: null,
-        similarEstates: [],
-      };
+    if (!userLocation || !userLocation.lat || !userLocation.lng) {
+      console.error("[PRICE RECOMMEND] Invalid user location provided");
+      return [];
     }
 
-    // Create a temp estate object with the provided data
-    const targetEstate = {
-      property: {
-        bedroom: estateData.bedrooms || 0,
-        bathroom: estateData.bathrooms || 0,
-        floors: estateData.floors || 0,
-      },
-      address: {
-        city: estateData.city || "",
-        country: estateData.country || "",
-        lat: parseFloat(estateData.lat || 0),
-        lng: parseFloat(estateData.lng || 0),
-      },
-      rating_star: 0,
-    };
-
-    const estates = await Estate.find({ status: "available" }).lean();
-
-    if (estates.length === 0) {
-      console.log(
-        "[PRICE RECOMMEND] No available estates found for comparison"
-      );
-      return {
-        success: false,
-        message: "No comparable properties found",
-        recommendedPrice: null,
-        similarEstates: [],
-      };
-    }
+    const userLat = parseFloat(userLocation.lat);
+    const userLng = parseFloat(userLocation.lng);
+    const userCity = userLocation.city;
 
     console.log(
-      `[PRICE RECOMMEND] Found ${estates.length} available estates for comparison`
+      `[PRICE RECOMMEND] Finding estates near user location in ${
+        userCity || "unknown area"
+      }`
     );
 
-    const scoredEstates = estates
-      .map((estate) => ({
-        estate,
-        similarityScore: calculateEstateFeatureSimilarity(targetEstate, estate),
-      }))
-      .filter((item) => item.similarityScore > 0.6);
+    // First attempt: find estates in the same city if city is provided
+    let estatesInArea = [];
+    if (userCity) {
+      estatesInArea = await Estate.find({
+        "address.city": userCity,
+      }).lean();
 
-    if (scoredEstates.length === 0) {
-      console.log("[PRICE RECOMMEND] No sufficiently similar estates found");
-      return {
-        success: false,
-        message: "No sufficiently similar properties found",
-        recommendedPrice: null,
-        similarEstates: [],
-      };
+      console.log(
+        `[PRICE RECOMMEND] Found ${estatesInArea.length} estates in ${userCity}`
+      );
     }
 
-    scoredEstates.sort((a, b) => b.similarityScore - a.similarityScore);
+    // If not enough estates found in the city or no city provided, search by distance
+    if (estatesInArea.length < 3) {
+      console.log(
+        `[PRICE RECOMMEND] Insufficient data in user's city, searching nearby areas within ${maxDistance}km`
+      );
 
-    const topSimilarEstates = scoredEstates.slice(0, k);
+      // Get all available estates
+      const allEstates = await Estate.find({}).lean();
 
-    // Calculate weighted average price based on similarity
-    const totalSimilarity = topSimilarEstates.reduce(
-      (sum, item) => sum + item.similarityScore,
-      0
-    );
-    const weightedPrice =
-      topSimilarEstates.reduce(
-        (sum, item) => sum + item.estate.price * item.similarityScore,
-        0
-      ) / totalSimilarity;
+      // Calculate distance for each estate and filter by maxDistance
+      const nearbyEstates = allEstates.filter((estate) => {
+        if (!estate.address || !estate.address.lat || !estate.address.lng)
+          return false;
 
-    // Check rental transaction history for market trends
-    const recentTransactions = await RentalTransaction.find({
-      status: "approved",
-      createdAt: { $gte: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000) }, // Last 90 days
-    })
-      .populate("estate")
-      .lean();
+        const estateLat = parseFloat(estate.address.lat);
+        const estateLng = parseFloat(estate.address.lng);
 
-    let marketAdjustment = 1.0;
-    if (recentTransactions.length > 0) {
-      // Compare recent transaction prices with listed prices
-      const priceRatios = [];
-      recentTransactions.forEach((transaction) => {
-        if (transaction.estate && transaction.estate.price) {
-          const ratio = transaction.rentalPrice / transaction.estate.price;
-          if (ratio > 0) priceRatios.push(ratio);
-        }
+        if (isNaN(estateLat) || isNaN(estateLng)) return false;
+
+        const distance = calculateHaversineDistance(
+          userLat,
+          userLng,
+          estateLat,
+          estateLng
+        );
+
+        // Add distance to the estate object for later use
+        estate.distance = distance;
+        return distance <= maxDistance;
       });
 
-      if (priceRatios.length > 0) {
-        const avgRatio =
-          priceRatios.reduce((sum, ratio) => sum + ratio, 0) /
-          priceRatios.length;
-        marketAdjustment = avgRatio;
-        console.log(
-          `[PRICE RECOMMEND] Market adjustment factor: ${marketAdjustment.toFixed(
-            2
-          )}`
+      // Sort by distance (closest first)
+      nearbyEstates.sort((a, b) => a.distance - b.distance);
+
+      // If we have estates from city search, combine them
+      if (estatesInArea.length > 0) {
+        // Add distance to city estates if not already added
+        estatesInArea = estatesInArea.map((estate) => {
+          if (estate.distance === undefined) {
+            const estateLat = parseFloat(estate.address.lat);
+            const estateLng = parseFloat(estate.address.lng);
+            estate.distance = calculateHaversineDistance(
+              userLat,
+              userLng,
+              estateLat,
+              estateLng
+            );
+          }
+          return estate;
+        });
+
+        // Combine and remove duplicates
+        const estateIds = new Set(estatesInArea.map((e) => e._id.toString()));
+        const uniqueNearbyEstates = nearbyEstates.filter(
+          (e) => !estateIds.has(e._id.toString())
         );
+
+        estatesInArea = [...estatesInArea, ...uniqueNearbyEstates];
+        // Re-sort by distance
+        estatesInArea.sort((a, b) => a.distance - b.distance);
+      } else {
+        estatesInArea = nearbyEstates;
       }
+
+      console.log(
+        `[PRICE RECOMMEND] Found ${estatesInArea.length} estates within ${maxDistance}km of user location`
+      );
+    } else {
+      // Add distance to estates if using city search
+      estatesInArea = estatesInArea.map((estate) => {
+        if (estate.distance === undefined) {
+          const estateLat = parseFloat(estate.address.lat);
+          const estateLng = parseFloat(estate.address.lng);
+          estate.distance = calculateHaversineDistance(
+            userLat,
+            userLng,
+            estateLat,
+            estateLng
+          );
+        }
+        return estate;
+      });
     }
 
-    // Apply market adjustment
-    const adjustedPrice = weightedPrice * marketAdjustment;
-
-    // Calculate price range (±10%)
-    const minPrice = Math.floor(adjustedPrice * 0.9);
-    const maxPrice = Math.ceil(adjustedPrice * 1.1);
-
-    console.log(
-      `[PRICE RECOMMEND] Calculated weighted price: ${weightedPrice.toFixed(2)}`
-    );
-    console.log(
-      `[PRICE RECOMMEND] Adjusted price for market trends: ${adjustedPrice.toFixed(
-        2
-      )}`
-    );
-    console.log(
-      `[PRICE RECOMMEND] Recommended price range: ${minPrice} - ${maxPrice}`
-    );
-
-    // Log details of similar estates used for calculation
-    console.log(
-      `[PRICE RECOMMEND] Top ${topSimilarEstates.length} similar estates used:`
-    );
-    topSimilarEstates.forEach((item, index) => {
-      console.log(
-        `  [${index + 1}] Estate ID: ${
-          item.estate._id
-        } - Score: ${item.similarityScore.toFixed(4)} - Price: ${
-          item.estate.price
-        }`
-      );
-    });
-
-    return {
-      success: true,
-      recommendedPrice: {
-        average: Math.round(adjustedPrice),
-        range: {
-          min: minPrice,
-          max: maxPrice,
-        },
-      },
-      similarEstates: topSimilarEstates.map((item) => ({
-        id: item.estate._id,
-        price: item.estate.price,
-        similarity: item.similarityScore,
-        features: extractEstateFeatures(item.estate),
-      })),
-      marketTrend: {
-        adjustment: marketAdjustment,
-        transactionsAnalyzed: recentTransactions.length,
-      },
-    };
+    return estatesInArea;
   } catch (error) {
-    console.error(`[ERROR] Error getting price recommendation:`, {
+    console.error("[PRICE RECOMMEND] Error finding estates by location:", {
       message: error.message,
       stack: error.stack,
     });
-    return {
-      success: false,
-      message: "Error calculating price recommendation",
-      error: error.message,
-    };
+    return [];
   }
 };
 
 /**
- * Get suggested price ranges for different property types
- * @returns {Object} - Object containing price ranges by property type and location
+ * Find similar estates based on property features from a pool of nearby estates
+ * @param {Object} propertyFeatures - Features of the property to find similar estates for
+ * @param {Array} nearbyEstates - Array of estates already filtered by location
+ * @param {Number} maxResults - Maximum number of similar estates to return
+ * @returns {Array} Array of similar estates with similarity scores
  */
-const getSuggestedPriceRanges = async () => {
+const findSimilarEstatesFromPool = (
+  propertyFeatures,
+  nearbyEstates,
+  maxResults = 10
+) => {
   try {
-    console.log("[PRICE SUGGEST] Generating suggested price ranges");
-
-    const estates = await Estate.find({ status: "available" }).lean();
-
-    if (estates.length === 0) {
-      console.log("[PRICE SUGGEST] No available estates found");
-      return {
-        success: false,
-        message: "No available estates found to generate suggestions",
-        suggestions: null,
-      };
+    if (!propertyFeatures || !nearbyEstates || nearbyEstates.length === 0) {
+      console.log(
+        "[PRICE RECOMMEND] No property features or nearby estates provided"
+      );
+      return [];
     }
 
     console.log(
-      `[PRICE SUGGEST] Found ${estates.length} available estates for analysis`
+      `[PRICE RECOMMEND] Finding similar estates from a pool of ${nearbyEstates.length} nearby estates`
     );
 
-    // Group estates by bedroom count
-    const bedroomGroups = {};
+    // Calculate similarity scores
+    const scoredEstates = nearbyEstates.map((estate) => {
+      // Feature weights
+      const bedroomWeight = 0.4;
+      const bathroomWeight = 0.3;
+      const floorsWeight = 0.3;
 
-    estates.forEach((estate) => {
-      const bedrooms = estate.property?.bedroom || 0;
-      if (!bedroomGroups[bedrooms]) {
-        bedroomGroups[bedrooms] = [];
-      }
-      bedroomGroups[bedrooms].push(estate);
-    });
-
-    // Group estates by location (city)
-    const locationGroups = {};
-
-    estates.forEach((estate) => {
-      const city = estate.address?.city || "Unknown";
-      if (!locationGroups[city]) {
-        locationGroups[city] = [];
-      }
-      locationGroups[city].push(estate);
-    });
-
-    // Calculate price statistics for each bedroom group
-    const bedroomPriceRanges = {};
-
-    Object.keys(bedroomGroups).forEach((bedrooms) => {
-      const estatesInGroup = bedroomGroups[bedrooms];
-
-      if (estatesInGroup.length > 0) {
-        const prices = estatesInGroup.map((estate) => estate.price);
-        const avgPrice =
-          prices.reduce((sum, price) => sum + price, 0) / prices.length;
-        const minPrice = Math.min(...prices);
-        const maxPrice = Math.max(...prices);
-
-        bedroomPriceRanges[bedrooms] = {
-          min: minPrice,
-          max: maxPrice,
-          avg: Math.round(avgPrice),
-          count: estatesInGroup.length,
+      // Check if estate has property data
+      if (!estate.property) {
+        return {
+          estate,
+          similarityScore: 0,
+          distance: estate.distance || 0,
         };
       }
+
+      // Calculate feature similarities (0 to 1 scale)
+      const bedroomDiff = Math.abs(
+        (estate.property.bedroom || 0) - (propertyFeatures.bedroom || 0)
+      );
+      const bathroomDiff = Math.abs(
+        (estate.property.bathroom || 0) - (propertyFeatures.bathroom || 0)
+      );
+      const floorsDiff = Math.abs(
+        (estate.property.floors || 0) - (propertyFeatures.floors || 0)
+      );
+
+      const bedroomSimilarity = Math.max(0, 1 - bedroomDiff / 3);
+      const bathroomSimilarity = Math.max(0, 1 - bathroomDiff / 2);
+      const floorsSimilarity = Math.max(0, 1 - floorsDiff / 3);
+
+      // Combined similarity score
+      const similarityScore =
+        bedroomWeight * bedroomSimilarity +
+        bathroomWeight * bathroomSimilarity +
+        floorsWeight * floorsSimilarity;
+
+      return {
+        estate,
+        similarityScore,
+        distance: estate.distance || 0,
+      };
     });
 
-    // Calculate price statistics for each location group
-    const locationPriceRanges = {};
+    // Filter out estates with very low similarity
+    const validEstates = scoredEstates.filter(
+      (item) => item.similarityScore > 0.3
+    );
 
-    Object.keys(locationGroups).forEach((location) => {
-      const estatesInLocation = locationGroups[location];
+    // Sort by similarity score (most similar first)
+    validEstates.sort((a, b) => b.similarityScore - a.similarityScore);
 
-      if (estatesInLocation.length > 0) {
-        const prices = estatesInLocation.map((estate) => estate.price);
-        const avgPrice =
-          prices.reduce((sum, price) => sum + price, 0) / prices.length;
-        const minPrice = Math.min(...prices);
-        const maxPrice = Math.max(...prices);
-
-        locationPriceRanges[location] = {
-          min: minPrice,
-          max: maxPrice,
-          avg: Math.round(avgPrice),
-          count: estatesInLocation.length,
-        };
-      }
-    });
-
-    // Calculate overall price statistics
-    const allPrices = estates.map((estate) => estate.price);
-    const overallStats = {
-      min: Math.min(...allPrices),
-      max: Math.max(...allPrices),
-      avg: Math.round(
-        allPrices.reduce((sum, price) => sum + price, 0) / allPrices.length
-      ),
-      count: estates.length,
-    };
-
-    return {
-      success: true,
-      suggestions: {
-        overall: overallStats,
-        byBedrooms: bedroomPriceRanges,
-        byLocation: locationPriceRanges,
-      },
-    };
+    // Return top results
+    return validEstates.slice(0, maxResults);
   } catch (error) {
-    console.error("[ERROR] Error generating price suggestions:", {
+    console.error(
+      "[PRICE RECOMMEND] Error finding similar estates from pool:",
+      {
+        message: error.message,
+        stack: error.stack,
+      }
+    );
+    return [];
+  }
+};
+
+/**
+ * Generates price recommendation for a property based on user location
+ * @param {Object} userLocation - Location data with lat, lng, and optionally city
+ * @param {Object} propertyFeatures - Property features like bedroom, bathroom, floors
+ * @returns {Object} Price recommendation data
+ */
+export const generatePriceRecommendation = async (
+  userLocation,
+  propertyFeatures
+) => {
+  try {
+    console.log(
+      "[PRICE RECOMMEND] Generating price recommendation based on user location"
+    );
+
+    // Find estates near user location
+    const estatesInArea = await findEstatesByLocation(userLocation);
+
+    if (!estatesInArea || estatesInArea.length === 0) {
+      console.log(
+        "[PRICE RECOMMEND] No estates found near the specified location"
+      );
+      return {
+        success: false,
+        message: "Không tìm thấy bất động sản nào ở khu vực này để đề xuất giá",
+      };
+    }
+
+    // Find similar estates from the location-filtered pool
+    const similarEstates = findSimilarEstatesFromPool(
+      propertyFeatures,
+      estatesInArea
+    );
+
+    if (!similarEstates || similarEstates.length === 0) {
+      console.log("[PRICE RECOMMEND] No similar estates found for comparison");
+      return {
+        success: false,
+        message:
+          "Không có đủ dữ liệu để đề xuất giá cho phòng trọ này trong khu vực của bạn",
+      };
+    }
+
+    // Only use estates with high similarity (score > 0.5)
+    const highlyRelevantEstates = similarEstates.filter(
+      (item) => item.similarityScore > 0.5
+    );
+
+    // Use at least 3 estates or all if less than 3 available
+    const estatesForPricing =
+      highlyRelevantEstates.length >= 3
+        ? highlyRelevantEstates
+        : similarEstates;
+
+    // Calculate price statistics
+    const prices = estatesForPricing.map((item) => item.estate.price);
+    const averagePrice =
+      prices.reduce((sum, price) => sum + price, 0) / prices.length;
+    const minPrice = Math.min(...prices);
+    const maxPrice = Math.max(...prices);
+
+    // Calculate recommended price range (±15% of average)
+    const recommendedPriceMin = Math.round(
+      Math.max(minPrice, averagePrice * 0.85)
+    );
+    const recommendedPriceMax = Math.round(
+      Math.min(maxPrice, averagePrice * 1.15)
+    );
+
+    // Get location info for estate recommendation
+    let locationInfo = userLocation.city || "khu vực của bạn";
+
+    // If user didn't provide city, use the city from the most similar estate
+    if (!userLocation.city && estatesForPricing.length > 0) {
+      const topEstate = estatesForPricing[0].estate;
+      if (topEstate.address && topEstate.address.city) {
+        locationInfo = topEstate.address.city;
+      }
+    }
+
+    // Prepare the response
+    const result = {
+      success: true,
+      recommendedPriceRange: {
+        min: recommendedPriceMin,
+        max: recommendedPriceMax,
+        average: Math.round(averagePrice),
+      },
+      similarEstatesCount: estatesForPricing.length,
+      locationInfo: locationInfo,
+      propertyFeatures: {
+        bedrooms: propertyFeatures.bedroom,
+        bathrooms: propertyFeatures.bathroom,
+        floors: propertyFeatures.floors,
+      },
+      explanation: `Giá đề xuất ${
+        Math.round((recommendedPriceMin / 1000000) * 10) / 10
+      } - ${
+        Math.round((recommendedPriceMax / 1000000) * 10) / 10
+      } triệu dựa trên ${
+        estatesForPricing.length
+      } phòng tương tự ở ${locationInfo} (${propertyFeatures.bedroom} phòng, ${
+        propertyFeatures.floors
+      } tầng, ${propertyFeatures.bathroom} giường)`,
+    };
+
+    console.log("[PRICE RECOMMEND] Generated recommendation:", result);
+    return result;
+  } catch (error) {
+    console.error("[PRICE RECOMMEND] Error generating price recommendation:", {
       message: error.message,
       stack: error.stack,
     });
 
     return {
       success: false,
-      message: "Error generating price suggestions",
-      error: error.message,
+      message: "Đã xảy ra lỗi khi tạo đề xuất giá",
     };
   }
 };
-
-export { getEstateRecommendedPrice, getSuggestedPriceRanges };

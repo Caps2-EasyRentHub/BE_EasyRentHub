@@ -2,6 +2,7 @@ import express from "express";
 import estateCtrl from "../controllers/estateCtrl.js";
 import auth from "../middleware/auth.js";
 import recommendationCtrl from "../controllers/recommendationCtrl.js";
+import priceRecommendationCtrl from "../controllers/priceRecommendationCtrl.js";
 
 const estateRouter = express.Router();
 estateRouter.get("/searchEstates", auth, estateCtrl.searchEstates);
@@ -32,15 +33,25 @@ estateRouter.get(
   recommendationCtrl.getContentBasedRecommendations
 );
 
+// New endpoint for price recommendation
 estateRouter.get(
-  "/recommendations/price",
+  "/price-recommendation",
   auth,
-  recommendationCtrl.getPriceRecommendation
+  priceRecommendationCtrl.getPriceRecommendation
 );
 
-estateRouter.get(
-  "/recommendations/price-suggestions",
-  recommendationCtrl.getPriceSuggestions
+// Endpoint that accepts POST data for estates that don't exist yet
+estateRouter.post(
+  "/price-recommendation",
+  auth,
+  priceRecommendationCtrl.getPriceRecommendation
+);
+
+// Price recommendation endpoint based on user location
+estateRouter.post(
+  "/price-recommendation-by-location",
+  auth,
+  priceRecommendationCtrl.getPriceRecommendation
 );
 
 export default estateRouter;

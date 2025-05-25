@@ -25,6 +25,8 @@ import multer from "multer";
 import path from "path";
 import { fileURLToPath } from "url";
 import paymentRouter from "./routers/paymentRouter.js";
+import faceAuthRouter from "./routers/faceAuthRouter.js";
+import FaceRecognitionService from "./services/faceRecognition.service.js";
 
 const app = express();
 const __filename = fileURLToPath(import.meta.url);
@@ -47,7 +49,7 @@ SocketServer(io);
 app.use(socketMiddleware(io));
 chatSocketHandler(io);
 
-// Create peer server
+// Peer server
 ExpressPeerServer(http, { path: "/" });
 
 // Routes
@@ -62,9 +64,10 @@ app.use("/api", maintenanceRequestRouter);
 app.use("/api/landlord", landlordEstateRouter);
 app.use("/api/favorite", favoriteRouter);
 app.use("/api/upload", uploadRouter);
-app.use('/uploads', express.static('uploads'));
+app.use("/uploads", express.static("uploads"));
 app.use("/api/messages", messageRouter);
 app.use("/api/payment", paymentRouter);
+app.use("/api/face-auth", faceAuthRouter);
 
 const connectDB = async () => {
   try {
@@ -75,6 +78,18 @@ const connectDB = async () => {
     process.exit(1);
   }
 };
+
+async function initializeServices() {
+  try {
+    console.log("Initializing AWS Rekognition collection...");
+    await FaceRecognitionService.createCollection();
+    console.log("AWS resources initialized successfully");
+  } catch (error) {
+    console.error("Failed to initialize AWS resources:", error);
+  }
+}
+
+await initializeServices();
 
 const PORT = process.env.PORT || 5000;
 
