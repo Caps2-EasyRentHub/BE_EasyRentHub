@@ -45,34 +45,32 @@ class FaceAuthController {
         return res.status(400).json({ message: "No image provided" });
       }
 
-      const isVerified = await FaceRecognitionService.verifyFace(
+      const result = await FaceRecognitionService.verifyFace(
         imageBuffer,
         userId
       );
 
-      if (isVerified) {
-        res.json({ verified: true, message: "Face verification successful" });
+      if (result.verified) {
+        res.json({ 
+          verified: true, 
+          message: "Face verification successful",
+          similarity: result.similarity 
+        });
       } else {
-        res
-          .status(401)
-          .json({ verified: false, message: "Face verification failed" });
+        res.status(401).json({ 
+          verified: false, 
+          message: result.message || "Face verification failed",
+          similarity: result.similarity
+        });
       }
     } catch (error) {
       console.error("Verify face error:", error);
-
-      if (
-        error.message.includes("No face detected") ||
-        error.message.includes("Multiple faces") ||
-        error.message.includes("confidence") ||
-        error.message.includes("eyes are open") ||
-        error.message.includes("mouth is visible") ||
-        error.message.includes("look directly") ||
-        error.message.includes("Face is too small")
-      ) {
-        return res.status(400).json({ message: error.message });
-      }
-
-      res.status(500).json({ message: "Internal server error" });
+      
+      res.status(401).json({ 
+        verified: false, 
+        message: "Face verification failed",
+        detail: "An unexpected error occurred during verification"
+      });
     }
   }
 

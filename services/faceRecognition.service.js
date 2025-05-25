@@ -1,6 +1,9 @@
 import { RekognitionClient, CompareFacesCommand, IndexFacesCommand, SearchFacesByImageCommand, CreateCollectionCommand, ListCollectionsCommand, DetectFacesCommand } from "@aws-sdk/client-rekognition";
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 import { v4 as uuidv4 } from 'uuid';
+import dotenv from 'dotenv';
+
+dotenv.config();
 
 class FaceRecognitionService {
     constructor() {
@@ -9,12 +12,18 @@ class FaceRecognitionService {
         this.SIMILARITY_THRESHOLD = 95;
 
         const awsConfig = {
-            region: process.env.AWS_REGION,
-            credentials: {
+            region: process.env.AWS_REGION || "ap-southeast-2"
+        };
+
+        if (process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY) {
+            awsConfig.credentials = {
                 accessKeyId: process.env.AWS_ACCESS_KEY_ID,
                 secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY
-            }
-        };
+            };
+        }
+
+        console.log("AWS Config initialized with region:", awsConfig.region);
+        console.log("AWS Credentials available:", !!awsConfig.credentials);
 
         this.rekognitionClient = new RekognitionClient(awsConfig);
         this.s3Client = new S3Client(awsConfig);
@@ -114,7 +123,10 @@ class FaceRecognitionService {
             
         } catch (error) {
             console.error('Error validating face image:', error);
-            throw new Error('Failed to validate face image');
+            return {
+                isValid: false,
+                message: 'Failed to validate face image'
+            };
         }
     }
 
@@ -151,30 +163,43 @@ class FaceRecognitionService {
 
     async verifyFace(imageBuffer, userId) {
         try {
-            const validation = await this.validateFaceImage(imageBuffer);
-            
-            if (!validation.isValid) {
-                throw new Error(validation.message);
-            }
-            
             console.log(`Verifying face for user: ${userId}`);
             
-            const searchCommand = new SearchFacesByImageCommand({
-                CollectionId: this.COLLECTION_ID,
-                Image: {
-                    Bytes: imageBuffer
-                },
-                FaceMatchThreshold: this.SIMILARITY_THRESHOLD,
-                MaxFaces: 5
-            });
+            let validation;
+            try {
+                validation = await this.validateFaceImage(imageBuffer);
+            } catch (error) {
+                console.log(`Face validation failed: ${error.message}`);
+                return { verified: false, message: error.message };
+            }
+            
+            if (!validation.isValid) {
+                console.log(`Face validation failed: ${validation.message}`);
+                return { verified: false, message: validation.message };
+            }
+            
+            let searchResult;
+            try {
+                const searchCommand = new SearchFacesByImageCommand({
+                    CollectionId: this.COLLECTION_ID,
+                    Image: {
+                        Bytes: imageBuffer
+                    },
+                    FaceMatchThreshold: this.SIMILARITY_THRESHOLD,
+                    MaxFaces: 5
+                });
 
-            const searchResult = await this.rekognitionClient.send(searchCommand);
+                searchResult = await this.rekognitionClient.send(searchCommand);
+            } catch (error) {
+                console.error("Error searching for face:", error);
+                return { verified: false, message: "Error processing face image" };
+            }
             
             console.log("Search result:", JSON.stringify(searchResult, null, 2));
 
             if (!searchResult.FaceMatches || searchResult.FaceMatches.length === 0) {
                 console.log("No face matches found");
-                return false;
+                return { verified: false, message: "Face not recognized" };
             }
 
             const userMatches = searchResult.FaceMatches.filter(match => 
@@ -182,7 +207,7 @@ class FaceRecognitionService {
             
             if (userMatches.length === 0) {
                 console.log(`No matches found for user ID: ${userId}`);
-                return false;
+                return { verified: false, message: "Face doesn't match with registered user" };
             }
 
             const bestMatch = userMatches.reduce((best, current) => 
@@ -193,10 +218,14 @@ class FaceRecognitionService {
             const isVerified = bestMatch.Similarity >= this.SIMILARITY_THRESHOLD;
             console.log(`Verification result: ${isVerified ? 'SUCCESS' : 'FAILED'}`);
             
-            return isVerified;
+            return { 
+                verified: isVerified, 
+                message: isVerified ? "Face verification successful" : "Face similarity below required threshold",
+                similarity: bestMatch.Similarity
+            };
         } catch (error) {
             console.error('Error verifying face:', error);
-            throw new Error('Face verification failed');
+            return { verified: false, message: "Face verification process failed" };
         }
     }
 
