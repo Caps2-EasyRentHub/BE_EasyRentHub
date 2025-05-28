@@ -19,4 +19,6 @@ router.post('/compare', auth, upload.fields([
     { name: 'target', maxCount: 1 }
 ]), faceAuthController.compareFaces);
 
+router.get('/registration-status', auth, faceAuthController.checkFaceRegistration);
+
 export default router; 

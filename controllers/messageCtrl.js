@@ -62,7 +62,10 @@ export const sendMessage = async (req, res) => {
       mediaType
     });
 
-    res.status(200).json(message);
+    res.status(200).json({
+      ...message._doc,
+      conversationId: conversation._id
+    });
   } catch (err) {
     res.status(500).json({ message: 'Error sending message', error: err.message });
   }

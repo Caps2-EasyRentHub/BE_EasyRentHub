@@ -1,4 +1,4 @@
-import { RekognitionClient, CompareFacesCommand, IndexFacesCommand, SearchFacesByImageCommand, CreateCollectionCommand, ListCollectionsCommand, DetectFacesCommand } from "@aws-sdk/client-rekognition";
+import { RekognitionClient, CompareFacesCommand, IndexFacesCommand, SearchFacesByImageCommand, CreateCollectionCommand, ListCollectionsCommand, DetectFacesCommand, ListFacesCommand } from "@aws-sdk/client-rekognition";
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 import { v4 as uuidv4 } from 'uuid';
 import dotenv from 'dotenv';
@@ -264,6 +264,34 @@ class FaceRecognitionService {
             return result;
         } catch (error) {
             console.error('Error comparing faces:', error);
+            throw error;
+        }
+    }
+
+    async isFaceRegistered(userId) {
+        try {
+            const searchCommand = new SearchFacesByImageCommand({
+                CollectionId: this.COLLECTION_ID,
+                MaxFaces: 1,
+                FaceMatchThreshold: this.SIMILARITY_THRESHOLD
+            });
+            
+            const listCommand = new ListFacesCommand({
+                CollectionId: this.COLLECTION_ID,
+                MaxResults: 1000
+            });
+            
+            const listResult = await this.rekognitionClient.send(listCommand);
+            
+            const userFaces = listResult.Faces.filter(face => 
+                face.ExternalImageId === userId);
+            
+            return {
+                isRegistered: userFaces.length > 0,
+                faceCount: userFaces.length
+            };
+        } catch (error) {
+            console.error('Error checking face registration:', error);
             throw error;
         }
     }

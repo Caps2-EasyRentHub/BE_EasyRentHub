@@ -140,10 +140,28 @@ class FaceAuthController {
         imageBuffer
       );
 
+      console.log("validation " + validation.isValid);
+
       res.json(validation);
     } catch (error) {
       console.error("Validate face error:", error);
       res.status(500).json({ message: "Failed to validate face image" });
+    }
+  }
+
+  async checkFaceRegistration(req, res) {
+    try {
+      const userId = req.user.id;
+      
+      const result = await FaceRecognitionService.isFaceRegistered(userId);
+      
+      res.json({
+        isRegistered: result.isRegistered,
+        faceCount: result.faceCount
+      });
+    } catch (error) {
+      console.error("Check face registration error:", error);
+      res.status(500).json({ message: "Failed to check face registration status" });
     }
   }
 }
